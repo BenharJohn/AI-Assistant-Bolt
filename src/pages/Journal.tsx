@@ -26,7 +26,7 @@ const Journal: React.FC = () => {
 
   const toggleListening = () => {
     setIsListening(!isListening);
-    // For a real app, you'd integrate SpeechRecognition API here
+    // For a real app, you'd integrate the SpeechRecognition API here
     if (!isListening) {
       // Simulate voice input after a delay
       setTimeout(() => {
@@ -36,32 +36,56 @@ const Journal: React.FC = () => {
     }
   };
 
+  // --- vvv THIS IS THE MAIN EDITED SECTION vvv ---
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim() || isProcessing) return;
 
     const userEntry = input.trim();
+    // 1. Add user's message to the chat immediately for a responsive feel.
     setEntries(prev => [...prev, { type: 'user', content: userEntry }]);
     setInput('');
-    setIsProcessing(true);
+    setIsProcessing(true); // Show the "Reflecting..." indicator
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponses = [
-        "⟡ I hear that you're feeling overwhelmed. Let's break this down together. What's the most pressing task on your mind?",
-        "⟡ It's perfectly normal to feel this way. Would you like to try a quick breathing exercise to help center yourself?",
-        "⟡ I'm here to listen. Could you tell me more about what's contributing to these feelings?",
-      ];
-      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
-      setEntries(prev => [...prev, { type: 'ai', content: randomResponse }]);
+    // 2. Call our secure serverless function.
+    try {
+      const response = await fetch('/api/ask-assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: userEntry }), // Send the user's message
+      });
+
+      if (!response.ok) {
+        // If the server responds with an error (e.g., 500), we'll catch it here.
+        throw new Error('Network response was not ok');
+      }
+
+      const data = await response.json();
+      // 3. Use the AI's reply from the server, with a fallback message just in case.
+      const aiResponse = data.reply || "I'm having trouble thinking right now. Let's try again in a moment.";
+
+      // Add the real AI's response to the chat
+      setEntries(prev => [...prev, { type: 'ai', content: aiResponse }]);
+
+    } catch (error) {
+      // 4. If anything goes wrong with the fetch call, show a friendly error.
+      console.error("Failed to fetch AI response:", error);
+      setEntries(prev => [...prev, { type: 'ai', content: "⟡ I'm sorry, I seem to be having a little trouble connecting right now." }]);
+    } finally {
+      // 5. No matter what happens (success or failure), stop showing "Reflecting...".
       setIsProcessing(false);
-    }, 1500);
+    }
   };
+  // --- ^^^ END OF EDITED SECTION ^^^ ---
+
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
 
+  // The rest of the JSX remains the same as your themed version
   return (
     <div className={`container mx-auto px-4 py-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       <div className="max-w-2xl mx-auto">
@@ -78,7 +102,7 @@ const Journal: React.FC = () => {
 
         <div
           className={`bg-card rounded-2xl border border-appBorder overflow-hidden shadow-warm
-            ${isFullscreen ? 'h-[calc(100vh-8rem)]' : 'h-[600px]'}`} // Using themed shadow
+            ${isFullscreen ? 'h-[calc(100vh-8rem)]' : 'h-[600px]'}`}
         >
           <div className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -93,10 +117,10 @@ const Journal: React.FC = () => {
                     className={`max-w-[85%] ${entry.type === 'user' ? 'ml-auto text-right' : ''}`}
                   >
                     <div
-                      className={`inline-block text-left font-serif text-lg rounded-xl px-3 py-2 ${ // Added some padding and rounding to entries
+                      className={`inline-block text-left font-serif text-lg rounded-xl px-3 py-2 ${
                         entry.type === 'user'
-                          ? 'bg-primary/10 text-foreground' // User entries with a light primary tint
-                          : 'text-muted-foreground pl-1' // AI entries are more muted, adjusted padding
+                          ? 'bg-primary/10 text-foreground'
+                          : 'text-muted-foreground pl-1'
                       }`}
                     >
                       {entry.content.startsWith('⟡') && <span className="text-primary mr-1.5">{entry.content[0]}</span>}
@@ -109,9 +133,9 @@ const Journal: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="flex items-center space-x-2 text-muted-foreground pl-1" // Adjusted padding
+                    className="flex items-center space-x-2 text-muted-foreground pl-1"
                   >
-                    <Sparkles className="w-4 h-4 animate-pulse text-primary" /> {/* Themed Sparkle */}
+                    <Sparkles className="w-4 h-4 animate-pulse text-primary" />
                     <span className="text-sm font-serif">Reflecting...</span>
                   </motion.div>
                 )}
@@ -119,7 +143,7 @@ const Journal: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 border-t border-appBorder bg-background/80 backdrop-blur-sm"> {/* Themed border and bg */}
+            <div className="p-4 border-t border-appBorder bg-background/80 backdrop-blur-sm">
               <form onSubmit={handleSubmit} className="flex items-end space-x-3">
                 <button
                   type="button"
@@ -127,7 +151,7 @@ const Journal: React.FC = () => {
                   aria-label={isListening ? "Stop listening" : "Start listening"}
                   className={`p-3 rounded-xl transition-colors duration-200 ${
                     isListening
-                      ? 'bg-primary/80 text-primary-foreground' // Themed active listening state
+                      ? 'bg-primary/80 text-primary-foreground'
                       : 'text-muted-foreground hover:bg-muted/60'
                   }`}
                 >
@@ -139,7 +163,7 @@ const Journal: React.FC = () => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="What's on your mind?"
-                    className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground" // Themed text and placeholder
+                    className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground"
                   />
                 </div>
                 <button
@@ -148,8 +172,8 @@ const Journal: React.FC = () => {
                   aria-label="Send message"
                   className={`p-3 rounded-xl transition-colors duration-200 ${
                     !input.trim() || isProcessing
-                      ? 'text-muted-foreground/50 cursor-not-allowed' // More muted for disabled
-                      : 'text-primary hover:bg-primary/10' // Themed enabled state
+                      ? 'text-muted-foreground/50 cursor-not-allowed'
+                      : 'text-primary hover:bg-primary/10'
                   }`}
                 >
                   <Mic size={20} />
