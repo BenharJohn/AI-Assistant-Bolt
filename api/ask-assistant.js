@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
   try {
     // 4. We securely get our API key from the server's environment variables.
-    const API_KEY = process.env.VITE_GEMINI_API_KEY;
+    const API_KEY = process.env.GEMINI_API_KEY;
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
 
     // 5. We call the Google AI API.
