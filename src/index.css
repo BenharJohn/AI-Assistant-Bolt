@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 39 85% 95%;
+    --foreground: 20 10% 34%;
+    
+    --card: 39 100% 98%;
+    --card-foreground: 20 10% 34%;
+    
+    --popover: 39 100% 98%;
+    --popover-foreground: 20 10% 34%;
+    
+    --primary: 12 53% 66%;
+    --primary-foreground: 39 85% 95%;
+    
+    --secondary: 24 83% 77%;
+    --secondary-foreground: 20 10% 34%;
+    
+    --muted: 24 25% 95%;
+    --muted-foreground: 20 8% 45%;
+    
+    --accent: 12 43% 76%;
+    --accent-foreground: 20 10% 34%;
+    
+    --app-border: 24 33% 90%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-appBorder;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  /* Smooth transitions for interactive elements */
+  a, button {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  /* Form elements styling */
+  input, textarea, select {
+    @apply bg-card border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200;
+  }
+
+  /* Headings with warm, embracing typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-medium tracking-tight text-foreground;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary-hover rounded-xl px-6 py-3 font-medium shadow-soft hover:shadow-warm transition-all duration-300;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary-hover rounded-xl px-6 py-3 font-medium shadow-soft hover:shadow-warm transition-all duration-300;
+  }
+
+  .card {
+    @apply bg-card rounded-2xl border border-appBorder p-6 shadow-soft hover:shadow-warm transition-all duration-300;
+  }
+
+  .nav-link {
+    @apply text-foreground/80 hover:text-foreground px-4 py-2 rounded-xl transition-all duration-200 hover:bg-secondary/10;
+  }
+
+  .input-warm {
+    @apply bg-card border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200;
+  }
+}
+
+/* Organic animations */
+@keyframes gentle-fade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-gentle {
+  animation: gentle-fade 0.6s ease-out forwards;
+}
