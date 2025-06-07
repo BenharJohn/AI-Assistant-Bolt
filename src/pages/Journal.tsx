@@ -2,11 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Volume2, VolumeX, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { supabase } from '../supabaseClient'; // <--- 1. IMPORT THE SUPABASE CLIENT
+
+// Define the type for our journal entries for clarity
+type JournalEntry = {
+  type: 'user' | 'ai';
+  content: string;
+};
 
 const Journal: React.FC = () => {
-  const [entries, setEntries] = useState<Array<{ type: 'user' | 'ai'; content: string }>>([
-    { type: 'ai', content: '⟡ Welcome to your safe space. How are you feeling today?' }
-  ]);
+  const [entries, setEntries] = useState<Array<JournalEntry>>([]); // Start with an empty array
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -14,6 +19,37 @@ const Journal: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { reducedMotion } = useSettings();
 
+  // --- vvv 2. NEW: FETCH ENTRIES ON LOAD vvv ---
+  useEffect(() => {
+    const fetchEntries = async () => {
+      // Fetch all entries from the 'journal_entries' table, ordered by creation time
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('role, content')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching journal entries:', error);
+        // If fetching fails, still provide the welcome message.
+        setEntries([{ type: 'ai', content: '⟡ Welcome! I couldn\'t load our past conversation, but we can start fresh.' }]);
+      } else if (data && data.length > 0) {
+        // We need to cast the role to fit our JournalEntry type
+        const formattedEntries = data.map(entry => ({
+          type: entry.role as 'user' | 'ai',
+          content: entry.content
+        }));
+        setEntries(formattedEntries);
+      } else {
+        // If there are no entries in the database, add the initial welcome message
+        setEntries([{ type: 'ai', content: '⟡ Welcome to your safe space. How are you feeling today?' }]);
+      }
+    };
+
+    fetchEntries();
+  }, []); // The empty array [] means this effect runs only once when the component mounts
+
+
+  // Scroll to bottom effect remains the same
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: reducedMotion ? 'auto' : 'smooth'
@@ -24,11 +60,10 @@ const Journal: React.FC = () => {
     scrollToBottom();
   }, [entries, reducedMotion]);
 
+  // toggleListening remains the same
   const toggleListening = () => {
     setIsListening(!isListening);
-    // For a real app, you'd integrate the SpeechRecognition API here
     if (!isListening) {
-      // Simulate voice input after a delay
       setTimeout(() => {
         setInput("I'm feeling a bit overwhelmed with all my tasks today");
         setIsListening(false);
@@ -36,56 +71,63 @@ const Journal: React.FC = () => {
     }
   };
 
-  // --- vvv THIS IS THE MAIN EDITED SECTION vvv ---
+
+  // --- vvv 3. UPDATED: SAVE ENTRIES ON SUBMIT vvv ---
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim() || isProcessing) return;
 
-    const userEntry = input.trim();
-    // 1. Add user's message to the chat immediately for a responsive feel.
-    setEntries(prev => [...prev, { type: 'user', content: userEntry }]);
-    setInput('');
-    setIsProcessing(true); // Show the "Reflecting..." indicator
+    const userEntryContent = input.trim();
+    const userEntry: JournalEntry = { type: 'user', content: userEntryContent };
 
-    // 2. Call our secure serverless function.
+    // Optimistically update UI
+    setEntries(prev => [...prev, userEntry]);
+    setInput('');
+    setIsProcessing(true);
+
     try {
+      // Call our serverless function to get the AI response
       const response = await fetch('/api/ask-assistant', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: userEntry }), // Send the user's message
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userEntryContent }),
       });
 
-      if (!response.ok) {
-        // If the server responds with an error (e.g., 500), we'll catch it here.
-        throw new Error('Network response was not ok');
-      }
-
+      if (!response.ok) throw new Error('Network response was not ok');
+      
       const data = await response.json();
-      // 3. Use the AI's reply from the server, with a fallback message just in case.
-      const aiResponse = data.reply || "I'm having trouble thinking right now. Let's try again in a moment.";
+      const aiResponseContent = data.reply || "I'm having trouble thinking right now.";
+      const aiEntry: JournalEntry = { type: 'ai', content: aiResponseContent };
+      
+      // Optimistically update UI with AI response
+      setEntries(prev => [...prev, aiEntry]);
 
-      // Add the real AI's response to the chat
-      setEntries(prev => [...prev, { type: 'ai', content: aiResponse }]);
+      // --- NEW: Save both the user and AI entries to Supabase in the background ---
+      const { error: insertError } = await supabase.from('journal_entries').insert([
+        { role: 'user', content: userEntryContent },
+        { role: 'ai', content: aiResponseContent }
+      ]);
+
+      if (insertError) {
+        // This won't crash the app, but it will log the error for debugging.
+        console.error('Error saving entries to Supabase:', insertError);
+      }
+      // --- End of new save logic ---
 
     } catch (error) {
-      // 4. If anything goes wrong with the fetch call, show a friendly error.
       console.error("Failed to fetch AI response:", error);
-      setEntries(prev => [...prev, { type: 'ai', content: "⟡ I'm sorry, I seem to be having a little trouble connecting right now." }]);
+      const errorEntry: JournalEntry = { type: 'ai', content: "⟡ I'm sorry, I'm having a little trouble connecting." };
+      setEntries(prev => [...prev, errorEntry]);
     } finally {
-      // 5. No matter what happens (success or failure), stop showing "Reflecting...".
       setIsProcessing(false);
     }
   };
-  // --- ^^^ END OF EDITED SECTION ^^^ ---
-
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
 
-  // The rest of the JSX remains the same as your themed version
+  // The rest of your JSX remains the same as your previously themed version
   return (
     <div className={`container mx-auto px-4 py-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       <div className="max-w-2xl mx-auto">
@@ -109,7 +151,7 @@ const Journal: React.FC = () => {
               <AnimatePresence mode="popLayout">
                 {entries.map((entry, index) => (
                   <motion.div
-                    key={index}
+                    key={index} // Using index is okay for a simple append-only list
                     initial={{ opacity: 0, y: reducedMotion ? 0 : 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: reducedMotion ? 0 : -20 }}
