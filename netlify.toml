@@ -19,4 +19,4 @@
 
   # In netlify.toml
 [[plugins]]
-  package = "netlify-plugin-vite"
+  package = "@netlify/vite-plugin"
