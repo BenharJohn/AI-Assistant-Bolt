@@ -20,16 +20,16 @@ export default async (req, context) => {
       Your supportive response:
     `;
 
-    // --- vvv THIS IS THE ONLY LINE THAT HAS CHANGED vvv ---
     const API_KEY = process.env.GEMINI_API_KEY;
-    // --- ^^^ THIS IS THE ONLY LINE THAT HAS CHANGED ^^^ ---
 
     if (!API_KEY) {
       console.error("FATAL: GEMINI_API_KEY environment variable is not set on Netlify.");
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
+    // --- vvv THIS IS THE ONLY LINE THAT HAS CHANGED vvv ---
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
+    // --- ^^^ THIS IS THE ONLY LINE THAT HAS CHANGED ^^^ ---
 
     const apiResponse = await fetch(API_URL, {
       method: 'POST',
