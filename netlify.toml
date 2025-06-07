@@ -16,3 +16,7 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+  # In netlify.toml
+[[plugins]]
+  package = "netlify-plugin-vite"
