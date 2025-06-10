@@ -1,182 +1,52 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
-import Plan from '../components/ui/agent-plan';
 import { useSettings } from '../context/SettingsContext';
+import { useTask } from '../context/TaskContext';
+import TaskCard from '../components/TaskCard';
 
 const TaskManager: React.FC = () => {
   const { reducedMotion } = useSettings();
+  const { state: taskState, addTask: addTaskToDb } = useTask(); // Use state and functions from our new context
+  
+  // State for the manual "Add Task" modal
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
 
-  // Initial tasks - this will be passed to Plan component
-  const [tasks, setTasks] = useState([
-    {
-      id: "1",
-      title: "Complete History Essay",
-      description: "Write a 5-page essay on the Industrial Revolution",
-      status: "in-progress",
-      priority: "high",
-      level: 0,
-      dependencies: [],
-      subtasks: [
-        {
-          id: "1.1",
-          title: "Research Key Topics",
-          description: "Gather information about major inventions and social changes",
-          status: "completed",
-          priority: "high",
-          tools: ["browser", "note-taking"]
-        },
-        {
-          id: "1.2",
-          title: "Create Essay Outline",
-          description: "Organize main points and supporting evidence",
-          status: "in-progress",
-          priority: "high",
-          tools: ["outline-generator", "mind-map"]
-        },
-        {
-          id: "1.3",
-          title: "Write First Draft",
-          description: "Complete initial draft focusing on content over perfection",
-          status: "pending",
-          priority: "medium",
-          tools: ["text-editor", "focus-timer"]
-        },
-        {
-          id: "1.4",
-          title: "Review and Edit",
-          description: "Check for clarity, flow, and historical accuracy",
-          status: "pending",
-          priority: "medium",
-          tools: ["grammar-check", "text-to-speech"]
-        }
-      ]
-    },
-    {
-      id: "2",
-      title: "Math Exam Preparation",
-      description: "Study for upcoming calculus exam covering derivatives and integrals",
-      status: "need-help",
-      priority: "high",
-      level: 0,
-      dependencies: [],
-      subtasks: [
-        {
-          id: "2.1",
-          title: "Review Class Notes",
-          description: "Organize and summarize notes from previous lectures",
-          status: "in-progress",
-          priority: "high",
-          tools: ["note-organizer", "math-formatter"]
-        },
-        {
-          id: "2.2",
-          title: "Practice Problems",
-          description: "Complete practice exercises from textbook",
-          status: "need-help",
-          priority: "high",
-          tools: ["calculator", "step-solver"]
-        },
-        {
-          id: "2.3",
-          title: "Watch Tutorial Videos",
-          description: "Find and watch explanatory videos for difficult concepts",
-          status: "pending",
-          priority: "medium",
-          tools: ["video-player", "note-taking"]
-        }
-      ]
-    },
-    {
-      id: "3",
-      title: "Daily Reading Assignment",
-      description: "Read and comprehend Chapter 5 of 'To Kill a Mockingbird'",
-      status: "in-progress",
-      priority: "medium",
-      level: 0,
-      dependencies: [],
-      subtasks: [
-        {
-          id: "3.1",
-          title: "Pre-reading Overview",
-          description: "Review chapter summary and key themes",
-          status: "completed",
-          priority: "medium",
-          tools: ["text-summarizer", "concept-map"]
-        },
-        {
-          id: "3.2",
-          title: "Active Reading",
-          description: "Read chapter with text-to-speech assistance",
-          status: "in-progress",
-          priority: "high",
-          tools: ["text-to-speech", "reading-guide"]
-        },
-        {
-          id: "3.3",
-          title: "Comprehension Check",
-          description: "Answer chapter questions and identify main ideas",
-          status: "pending",
-          priority: "medium",
-          tools: ["quiz-generator", "note-taking"]
-        }
-      ]
-    }
-  ]);
-
-  const handleAddTask = (e: React.FormEvent) => {
+  // This function now saves a new task directly to the Supabase database
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
-    const newTask = {
-      id: Date.now().toString(),
+    // The addTaskToDb function now comes from our context and interacts with Supabase
+    await addTaskToDb({
       title: newTaskTitle,
       description: newTaskDescription,
-      status: "pending",
       priority: newTaskPriority,
-      level: 0,
-      dependencies: [],
-      subtasks: [
-        {
-          id: `${Date.now()}.1`,
-          title: "Break down into steps",
-          description: "Identify the main components of this task",
-          status: "pending",
-          priority: newTaskPriority,
-          tools: ["task-planner", "mind-map"]
-        }
-      ]
-    };
+      status: 'pending',
+    });
 
-    setTasks(prev => [...prev, newTask]);
+    // Reset form fields and close the modal
     setNewTaskTitle('');
     setNewTaskDescription('');
     setNewTaskPriority('medium');
     setShowAddForm(false);
   };
 
+  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        when: "beforeChildren",
-        staggerChildren: reducedMotion ? 0 : 0.1
-      }
+      transition: { staggerChildren: reducedMotion ? 0 : 0.1 }
     }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: reducedMotion ? 0 : 0.3 }
-    }
+    visible: { opacity: 1, y: 0, transition: { duration: reducedMotion ? 0 : 0.3 } }
   };
 
   return (
@@ -191,12 +61,12 @@ const TaskManager: React.FC = () => {
             <div>
               <h1 className="text-2xl font-bold text-foreground">Task Manager</h1>
               <p className="text-muted-foreground mt-2">
-                Manage your tasks and track progress with AI-powered planning
+                Manage your projects and track progress with your AI assistant.
               </p>
             </div>
             <button
               onClick={() => setShowAddForm(true)}
-              className="flex items-center space-x-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors duration-200 shadow-soft"
+              className="flex items-center space-x-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:bg-primary-hover transition-colors duration-200 shadow-soft"
             >
               <Plus size={16} />
               <span>Add Task</span>
@@ -211,7 +81,7 @@ const TaskManager: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
               onClick={() => setShowAddForm(false)}
             >
               <motion.div
@@ -243,11 +113,10 @@ const TaskManager: React.FC = () => {
                       value={newTaskTitle}
                       onChange={(e) => setNewTaskTitle(e.target.value)}
                       placeholder="Enter task title..."
-                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200"
+                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 text-foreground"
                       required
                     />
                   </div>
-
                   <div>
                     <label htmlFor="description" className="block text-sm font-medium text-card-foreground mb-1">
                       Description
@@ -258,10 +127,9 @@ const TaskManager: React.FC = () => {
                       onChange={(e) => setNewTaskDescription(e.target.value)}
                       placeholder="Enter task description..."
                       rows={3}
-                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 resize-none"
+                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 resize-none text-foreground"
                     />
                   </div>
-
                   <div>
                     <label htmlFor="priority" className="block text-sm font-medium text-card-foreground mb-1">
                       Priority
@@ -270,25 +138,24 @@ const TaskManager: React.FC = () => {
                       id="priority"
                       value={newTaskPriority}
                       onChange={(e) => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
-                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200"
+                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 text-foreground"
                     >
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
                       <option value="high">High</option>
                     </select>
                   </div>
-
                   <div className="flex justify-end space-x-3 pt-4">
                     <button
                       type="button"
                       onClick={() => setShowAddForm(false)}
-                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
+                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors duration-200 font-medium"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors duration-200 shadow-soft"
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover transition-colors duration-200 shadow-soft font-medium"
                     >
                       Add Task
                     </button>
@@ -299,12 +166,23 @@ const TaskManager: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Task Plan - Pass dynamic tasks */}
-        <motion.div variants={itemVariants}>
-          <div className="bg-card rounded-2xl shadow-warm border border-appBorder overflow-hidden">
-            <Plan initialTasks={tasks} onTasksChange={setTasks} />
-          </div>
+        {/* Task Display Logic - Now powered by Supabase! */}
+        <motion.div variants={itemVariants} className="space-y-6 mt-8">
+          {taskState.loading ? (
+            <p className="text-muted-foreground text-center animate-pulse">Loading tasks...</p>
+          ) : taskState.tasks.length > 0 ? (
+            taskState.tasks.map(task => (
+              // The TaskCard component will now render a task and its subtasks
+              <TaskCard key={task.id} task={task} />
+            ))
+          ) : (
+            <div className="bg-card rounded-2xl p-8 text-center text-muted-foreground">
+              <p className="font-medium">No tasks yet. Ready to get started?</p>
+              <p className="text-sm mt-2">Try asking your AI assistant: "Create a project to plan my birthday party for next month."</p>
+            </div>
+          )}
         </motion.div>
+
       </motion.div>
     </div>
   );
