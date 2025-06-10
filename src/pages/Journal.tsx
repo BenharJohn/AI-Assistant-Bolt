@@ -72,13 +72,19 @@ const Journal: React.FC = () => {
   };
 
 
-  // --- vvv 3. UPDATED: SAVE ENTRIES ON SUBMIT vvv ---
-  const handleSubmit = async (e?: React.FormEvent) => {
+
+
+
+// --- vvv THIS IS THE ONLY FUNCTION THAT CHANGES vvv ---
+const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim() || isProcessing) return;
 
     const userEntryContent = input.trim();
     const userEntry: JournalEntry = { type: 'user', content: userEntryContent };
+
+    // --- NEW: Get the last 5 entries from the current state to send as history ---
+    const recentHistory = entries.slice(-5);
 
     // Optimistically update UI
     setEntries(prev => [...prev, userEntry]);
@@ -86,11 +92,14 @@ const Journal: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // Call our serverless function to get the AI response
+      // --- MODIFIED: Send both the new message AND the recent history ---
       const response = await fetch('/api/ask-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userEntryContent }),
+        body: JSON.stringify({ 
+          message: userEntryContent,
+          history: recentHistory // Send the history along with the message
+        }),
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
@@ -99,20 +108,17 @@ const Journal: React.FC = () => {
       const aiResponseContent = data.reply || "I'm having trouble thinking right now.";
       const aiEntry: JournalEntry = { type: 'ai', content: aiResponseContent };
       
-      // Optimistically update UI with AI response
       setEntries(prev => [...prev, aiEntry]);
 
-      // --- NEW: Save both the user and AI entries to Supabase in the background ---
+      // The logic to save to Supabase remains the same and is still correct.
       const { error: insertError } = await supabase.from('journal_entries').insert([
         { role: 'user', content: userEntryContent },
         { role: 'ai', content: aiResponseContent }
       ]);
 
       if (insertError) {
-        // This won't crash the app, but it will log the error for debugging.
         console.error('Error saving entries to Supabase:', insertError);
       }
-      // --- End of new save logic ---
 
     } catch (error) {
       console.error("Failed to fetch AI response:", error);
@@ -123,6 +129,16 @@ const Journal: React.FC = () => {
     }
   };
 
+
+
+
+
+
+
+
+
+
+  
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
