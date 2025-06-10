@@ -1,79 +1,151 @@
 // File: /api/ask-assistant.js
+import { createClient } from '@supabase/supabase-js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// No longer need to import Supabase here!
-
-export default async (req, context) => {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
+// --- Define the "tools" our AI can use ---
+const tools = [
+  {
+    functionDeclarations: [
+      {
+        name: "createProjectWithSubtasks",
+        description: "Use for large, multi-step projects or goals that need to be broken down. Examples: 'plan my vacation', 'write my history essay', 'learn a new skill'. Do NOT use for simple, one-step tasks.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            title: {
+              type: "STRING",
+              description: "The title of the main project or goal. e.g., 'Complete history essay'"
+            },
+            due_date: {
+                type: "STRING",
+                description: "Optional deadline for the entire project in YYYY-MM-DD format."
+            }
+          },
+          required: ["title"]
+        }
+      },
+      {
+        name: "addTask",
+        description: "Use for simple, single-step tasks or reminders. e.g., 'Call the dentist', 'buy milk'",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            title: { type: "STRING", description: "The title of the task." },
+            description: { type: "STRING", description: "Optional description." },
+            priority: { type: "STRING", description: "Priority can be 'low', 'medium', or 'high'. Defaults to 'medium'.", enum: ["low", "medium", "high"] },
+          },
+          required: ["title"]
+        }
+      }
+    ]
   }
+];
+
+// --- Helper function to handle the `createProjectWithSubtasks` tool call ---
+async function handleCreateProject(args, supabase, genAI) {
+  console.log("AI is calling createProjectWithSubtasks with args:", args);
+  
+  const { data: parentTaskData, error: parentError } = await supabase
+    .from('tasks')
+    .insert({ title: args.title, due_date: args.due_date || null, status: 'pending', priority: 'high' })
+    .select('id')
+    .single();
+
+  if (parentError || !parentTaskData) {
+    console.error("Error creating parent task:", parentError);
+    return { success: false, error: "Failed to create the main project task." };
+  }
+  const parentId = parentTaskData.id;
+
+  const decompositionPrompt = `You are a world-class project manager. Your job is to break down a large goal into a list of 3-5 small, actionable subtasks.
+  The user's project is: "${args.title}".
+  The final project deadline is: ${args.due_date || 'not set'}.
+  If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline.
+  Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
+  
+  const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+  const result = await proModel.generateContent(decompositionPrompt);
+  const responseText = result.response.text();
+  
+  try {
+    const { subtasks } = JSON.parse(responseText.trim());
+    
+    const subtasksToInsert = subtasks.map(subtask => ({
+      title: subtask.title,
+      description: subtask.description || '',
+      due_date: subtask.due_date || null,
+      parent_task_id: parentId,
+      status: 'pending',
+      priority: 'medium'
+    }));
+
+    const { error: subtaskError } = await supabase.from('tasks').insert(subtasksToInsert);
+    if (subtaskError) throw subtaskError;
+    
+    return { success: true, result: `I have created the project "${args.title}" and broken it down into ${subtasks.length} sub-tasks for you.` };
+  } catch (e) {
+    console.error("Error parsing AI response for subtasks:", e, "Response was:", responseText);
+    return { success: false, error: "I created the main project, but had trouble with the sub-tasks." };
+  }
+}
+
+// --- Main handler function ---
+export default async (req, context) => {
+  if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
 
   try {
-    // 1. Get BOTH the new message and the history from the request body
     const { message: userInput, history } = await req.json();
-
-    if (!userInput) {
-      return new Response(JSON.stringify({ error: 'No message provided' }), { status: 400 });
-    }
-
-    // 2. Format the history that was passed in from the frontend
-    const formattedHistory = (history || []).map(entry => {
-        return `${entry.type === 'user' ? 'User' : 'AI'}: ${entry.content}`;
-    }).join('\n');
-
-
-    // 3. The rest of the logic is the same, but now it uses the correct, up-to-date history!
-    const fullPrompt = `
-      You are FocusAssist, a friendly, warm, and supportive AI companion.
-      Keep responses concise and under 75 words.
-      Maintain the context of the conversation. If the user asks a follow-up question, answer it directly based on the history.
-      Start your responses with the symbol: ⟡
-
-      Here is the recent conversation history:
-      ${formattedHistory}
-
-      The user has just sent a new message.
-      User: "${userInput}"
-
-      Your supportive and in-context response:
-    `;
+    if (!userInput) return new Response(JSON.stringify({ error: 'No message provided' }), { status: 400 });
 
     const API_KEY = process.env.GEMINI_API_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
-    if (!API_KEY) {
-      console.error("FATAL: GEMINI_API_KEY environment variable is not set on Netlify.");
+    if (!API_KEY || !supabaseUrl || !supabaseServiceKey) {
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools });
 
-    const apiResponse = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-      }),
-    });
+    const conversationHistory = (history || []).map(entry => ({
+        role: entry.type === 'user' ? 'user' : 'model',
+        parts: [{ text: entry.content }]
+    }));
+    
+    const chat = model.startChat({ history: conversationHistory });
+    const result = await chat.sendMessage(userInput);
+    const response = result.response;
+    
+    const functionCalls = response.functionCalls();
 
-    const responseData = await apiResponse.json();
+    if (functionCalls && functionCalls.length > 0) {
+      const call = functionCalls[0];
+      let toolResult;
 
-    if (!apiResponse.ok) {
-      console.error('Google AI API Error:', JSON.stringify(responseData));
-      return new Response(JSON.stringify({ error: 'Failed to get response from AI.' }), { status: apiResponse.status });
+      if (call.name === 'addTask') {
+        const { error } = await supabase.from('tasks').insert([{ ...call.args, status: 'pending' }]);
+        toolResult = error ? { success: false, error: error.message } : { success: true, result: `Task "${call.args.title}" was added.` };
+      } else if (call.name === 'createProjectWithSubtasks') {
+        toolResult = await handleCreateProject(call.args, supabase, genAI);
+      } else {
+        toolResult = { success: false, error: "Unknown tool requested." };
+      }
+
+      const result2 = await chat.sendMessage([{ functionResponse: { name: call.name, response: toolResult } }]);
+      const finalResponse = result2.response.text();
+      return new Response(JSON.stringify({ reply: finalResponse }), { status: 200 });
+
+    } else {
+      const aiResponseText = response.text();
+      return new Response(JSON.stringify({ reply: aiResponseText }), { status: 200 });
     }
 
-    const aiResponseText = responseData.candidates[0].content.parts[0].text;
-
-    return new Response(JSON.stringify({ reply: aiResponseText }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-
   } catch (error) {
-    console.error("Critical error inside function handler:", error.message);
+    console.error("Critical error in function handler:", error.message, error.stack);
     return new Response(JSON.stringify({ error: 'A critical error occurred.' }), { status: 500 });
   }
 };
 
-export const config = {
-  path: "/api/ask-assistant",
-};
+export const config = { path: "/api/ask-assistant" };
