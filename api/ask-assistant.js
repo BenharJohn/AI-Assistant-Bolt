@@ -1,9 +1,10 @@
 // File: /api/ask-assistant.js
+
+// 1. We now need to import the Supabase client library
 import { createClient } from '@supabase/supabase-js';
 
-// This modern syntax works with Netlify's latest function handlers.
+// The overall structure of the function remains the same
 export default async (req, context) => {
-  // Check if the request method is POST.
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
   }
@@ -17,41 +18,46 @@ export default async (req, context) => {
 
     // --- vvv NEW MEMORY LOGIC vvv ---
 
-    // 1. Get Supabase credentials securely from environment variables
+    // 2. Get Supabase credentials from Netlify environment variables
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("FATAL: Supabase environment variables are not set.");
-      return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
+    let formattedHistory = ''; // Default to an empty history string
+
+    // 3. Only try to fetch history if the credentials are provided
+    if (supabaseUrl && supabaseServiceKey) {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Fetch the last 6 messages, most recent first
+      const { data: history, error: historyError } = await supabase
+        .from('journal_entries')
+        .select('role, content')
+        .order('created_at', { descending: true })
+        .limit(6);
+      
+      if (historyError) {
+        // If there's an error, log it but don't stop the function.
+        // The AI can still respond without history.
+        console.error("Supabase history fetch error:", historyError.message);
+      } else if (history) {
+        // 4. Format the history into a simple string for the prompt
+        // We reverse the array so it's in chronological order
+        formattedHistory = history.reverse().map(entry => {
+          return `${entry.role === 'user' ? 'User' : 'AI'}: ${entry.content}`;
+        }).join('\n');
+      }
+    } else {
+      console.log("Info: Supabase environment variables not set. Proceeding without history.");
     }
-
-    // 2. Create a Supabase client for this function call
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // 3. Fetch the last 6 messages from the journal to use as context
-    const { data: history, error: historyError } = await supabase
-      .from('journal_entries')
-      .select('role, content')
-      .order('created_at', { descending: true })
-      .limit(6);
-
-    if (historyError) {
-      console.error("Supabase history fetch error:", historyError);
-      // We can still proceed without history, but we should log the error.
-    }
-
-    // 4. Format the history for the prompt (and reverse it to be in chronological order)
-    const formattedHistory = history ? history.reverse().map(entry => {
-      return `${entry.role === 'user' ? 'User' : 'AI'}: ${entry.content}`;
-    }).join('\n') : '';
 
     // --- ^^^ END OF NEW MEMORY LOGIC ^^^ ---
 
+
+    // 5. Update the prompt to include the conversation history
     const fullPrompt = `
       You are FocusAssist, a friendly, warm, and supportive AI companion.
-      Keep responses concise and under 75 words.
-      Maintain the context of the conversation. If the user asks a follow-up question, answer it directly.
+      Keep responses concise, helpful, and under 75 words.
+      Maintain the context of the conversation. If the user asks a follow-up question, answer it directly based on the history.
       Start your responses with the symbol: ⟡
 
       Here is the recent conversation history:
@@ -66,7 +72,7 @@ export default async (req, context) => {
     const API_KEY = process.env.GEMINI_API_KEY;
 
     if (!API_KEY) {
-      console.error("FATAL: GEMINI_API_KEY environment variable is not set.");
+      console.error("FATAL: GEMINI_API_KEY environment variable is not set on Netlify.");
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
     }
 
@@ -87,7 +93,8 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ error: 'Failed to get response from AI.' }), { status: apiResponse.status });
     }
 
-    const aiResponseText = responseData.candidates[0].content.parts[0].text;
+    // This part remains the same
+    const aiResponseText = data.candidates[0].content.parts[0].text;
 
     return new Response(JSON.stringify({ reply: aiResponseText }), {
       status: 200,
