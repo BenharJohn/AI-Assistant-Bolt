@@ -1,122 +1,91 @@
 import React from 'react';
 import { CheckCircle, Circle, Clock, AlertCircle } from 'lucide-react';
-
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  completed: boolean;
-  priority?: 'low' | 'medium' | 'high';
-  dueDate?: string;
-  category?: string;
-}
+import { Task } from '../context/TaskContext'; // Import your updated Task type
 
 interface TaskCardProps {
   task: Task;
-  onToggle?: (id: string) => void;
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
+  // You might pass update/delete functions from context here if needed
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ 
-  task, 
-  onToggle, 
-  onEdit, 
-  onDelete 
-}) => {
-  const getPriorityColor = (priority?: string) => {
-    switch (priority) {
-      case 'high': return 'border-red-500 bg-red-50';
-      case 'medium': return 'border-yellow-500 bg-yellow-50';
-      case 'low': return 'border-green-500 bg-green-50';
-      default: return 'border-gray-200 bg-white';
-    }
-  };
+// A smaller component for rendering subtasks cleanly
+const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
+    return (
+        <div className="flex items-center space-x-3 pl-4 py-2 border-t border-appBorder/50">
+            {subtask.status === 'completed' ? (
+                <CheckCircle className="w-4 h-4 text-secondary" />
+            ) : (
+                <Circle className="w-4 h-4 text-muted-foreground" />
+            )}
+            <p className={`text-sm ${subtask.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                {subtask.title}
+            </p>
+        </div>
+    );
+};
 
-  const getPriorityIcon = (priority?: string) => {
+
+const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
+  
+  const getPriorityClasses = (priority?: string) => {
     switch (priority) {
-      case 'high': return <AlertCircle className="w-4 h-4 text-red-500" />;
-      case 'medium': return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'low': return <Circle className="w-4 h-4 text-green-500" />;
-      default: return null;
+      case 'high': return 'border-primary bg-primary/5'; // Use tints of your theme colors
+      case 'medium': return 'border-secondary bg-secondary/5';
+      case 'low': return 'border-muted-foreground/50 bg-muted/20';
+      default: return 'border-appBorder bg-card';
     }
   };
 
   return (
-    <div className={`p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-md ${getPriorityColor(task.priority)} ${task.completed ? 'opacity-60' : ''}`}>
-      <div className="flex items-start justify-between">
-        <div className="flex items-start space-x-3 flex-1">
-          <button
-            onClick={() => onToggle?.(task.id)}
-            className="mt-1 transition-colors duration-200 hover:scale-110"
-          >
-            {task.completed ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            ) : (
-              <Circle className="w-5 h-5 text-gray-400 hover:text-gray-600" />
-            )}
-          </button>
-          
-          <div className="flex-1">
-            <h3 className={`font-semibold text-gray-900 ${task.completed ? 'line-through text-gray-500' : ''}`}>
-              {task.title}
-            </h3>
+    <div className={`rounded-2xl border-2 transition-all duration-200 shadow-soft hover:shadow-warm ${getPriorityClasses(task.priority)}`}>
+      <div className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-3 flex-1">
+            <button className="mt-1 transition-colors duration-200 hover:scale-110">
+              {task.status === 'completed' ? (
+                <CheckCircle className="w-5 h-5 text-secondary" />
+              ) : (
+                <Circle className="w-5 h-5 text-muted-foreground hover:text-foreground" />
+              )}
+            </button>
             
-            {task.description && (
-              <p className={`text-sm mt-1 ${task.completed ? 'text-gray-400' : 'text-gray-600'}`}>
-                {task.description}
-              </p>
-            )}
-            
-            <div className="flex items-center space-x-4 mt-2">
-              {task.priority && (
-                <div className="flex items-center space-x-1">
-                  {getPriorityIcon(task.priority)}
-                  <span className="text-xs font-medium capitalize text-gray-600">
-                    {task.priority}
+            <div className="flex-1">
+              <h3 className={`font-semibold ${task.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                {task.title}
+              </h3>
+              
+              {task.description && (
+                <p className={`text-sm mt-1 ${task.status === 'completed' ? 'text-muted-foreground/80' : 'text-muted-foreground'}`}>
+                  {task.description}
+                </p>
+              )}
+              
+              <div className="flex items-center space-x-4 mt-2">
+                {task.priority && (
+                  <span className="text-xs font-medium capitalize text-muted-foreground">
+                    {task.priority} Priority
                   </span>
-                </div>
-              )}
-              
-              {task.category && (
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                  {task.category}
-                </span>
-              )}
-              
-              {task.dueDate && (
-                <span className="text-xs text-gray-500">
-                  Due: {new Date(task.dueDate).toLocaleDateString()}
-                </span>
-              )}
+                )}
+                {task.dueDate && (
+                  <span className="text-xs text-muted-foreground">
+                    Due: {new Date(task.dueDate).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
-        
-        <div className="flex space-x-2 ml-4">
-          {onEdit && (
-            <button
-              onClick={() => onEdit(task.id)}
-              className="text-gray-400 hover:text-blue-600 transition-colors duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-          )}
-          
-          {onDelete && (
-            <button
-              onClick={() => onDelete(task.id)}
-              className="text-gray-400 hover:text-red-600 transition-colors duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          )}
-        </div>
       </div>
+      
+      {/* --- NEW: Render subtasks if they exist --- */}
+      {task.subtasks && task.subtasks.length > 0 && (
+        <div className="border-t-2 border-appBorder bg-background/50">
+            <div className="p-2 space-y-1">
+                {task.subtasks.map(subtask => (
+                    <SubtaskItem key={subtask.id} subtask={subtask} />
+                ))}
+            </div>
+        </div>
+      )}
     </div>
   );
 };
