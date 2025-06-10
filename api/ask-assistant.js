@@ -1,23 +1,40 @@
 // File: /api/ask-assistant.js
 
+// No longer need to import Supabase here!
+
 export default async (req, context) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
   }
 
   try {
-    const { message: userInput } = await req.json();
+    // 1. Get BOTH the new message and the history from the request body
+    const { message: userInput, history } = await req.json();
 
     if (!userInput) {
       return new Response(JSON.stringify({ error: 'No message provided' }), { status: 400 });
     }
 
+    // 2. Format the history that was passed in from the frontend
+    const formattedHistory = (history || []).map(entry => {
+        return `${entry.type === 'user' ? 'User' : 'AI'}: ${entry.content}`;
+    }).join('\n');
+
+
+    // 3. The rest of the logic is the same, but now it uses the correct, up-to-date history!
     const fullPrompt = `
       You are FocusAssist, a friendly, warm, and supportive AI companion.
-      Keep responses concise and under 75 words. Start responses with the symbol: ⟡
+      Keep responses concise and under 75 words.
+      Maintain the context of the conversation. If the user asks a follow-up question, answer it directly based on the history.
+      Start your responses with the symbol: ⟡
 
-      User's thought: "${userInput}"
-      Your supportive response:
+      Here is the recent conversation history:
+      ${formattedHistory}
+
+      The user has just sent a new message.
+      User: "${userInput}"
+
+      Your supportive and in-context response:
     `;
 
     const API_KEY = process.env.GEMINI_API_KEY;
@@ -27,9 +44,7 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
     }
 
-    // --- vvv THIS IS THE ONLY LINE THAT HAS CHANGED vvv ---
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
-    // --- ^^^ THIS IS THE ONLY LINE THAT HAS CHANGED ^^^ ---
 
     const apiResponse = await fetch(API_URL, {
       method: 'POST',
