@@ -2,8 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// --- Define the "tools" the AI can use ONLY in 'assistant' mode ---
-const assistantTools = [
+const tools = [
   {
     functionDeclarations: [
       {
@@ -20,7 +19,6 @@ const assistantTools = [
   }
 ];
 
-// --- Helper function to handle the `createProjectWithSubtasks` tool call ---
 async function handleCreateProject(args, supabase, genAI) {
   const { data: parentTaskData, error: parentError } = await supabase.from('tasks').insert({ title: args.title, due_date: args.due_date || null, status: 'pending', priority: 'high' }).select('id').single();
   if (parentError) { console.error("Error creating parent task:", parentError); return { success: false, error: "Failed to create the main project task." }; }
@@ -45,12 +43,10 @@ async function handleCreateProject(args, supabase, genAI) {
   }
 }
 
-// --- Main handler function ---
 export default async (req, context) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
 
   try {
-    // Get the mode from the request, defaulting to 'journal' if not provided
     const { message: userInput, history, mode = 'journal' } = await req.json();
     if (!userInput) return new Response(JSON.stringify({ error: 'No message provided' }), { status: 400 });
 
@@ -68,16 +64,21 @@ export default async (req, context) => {
     let model;
     let systemInstruction = "";
 
-    // DYNAMIC BEHAVIOR BASED ON MODE
     if (mode === 'assistant') {
       model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools: assistantTools });
-      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. Your goal is to help the user get things done by using the tools provided. Be friendly but concise.";
-    } else { // Default to journal mode
+      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant...";
+    } else { 
       model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-      systemInstruction = "You are an empathetic, non-judgmental friend. Your goal is to listen, ask insightful follow-up questions, and help the user explore their thoughts. Start your responses with the symbol: ⟡";
+      systemInstruction = "You are an empathetic, non-judgmental friend...";
     }
 
-    const conversationHistory = (history || []).map(entry => ({
+    // --- vvv THIS IS THE FIX vvv ---
+    // Ensure the history always starts with a 'user' message, as required by the API.
+    const firstUserIndex = (history || []).findIndex(entry => entry.type === 'user');
+    const validHistory = firstUserIndex === -1 ? [] : history.slice(firstUserIndex);
+    // --- ^^^ END OF FIX ^^^ ---
+
+    const conversationHistory = validHistory.map(entry => ({
         role: entry.type === 'user' ? 'user' : 'model',
         parts: [{ text: entry.content }]
     }));
@@ -89,7 +90,6 @@ export default async (req, context) => {
     const functionCalls = response.functionCalls();
 
     if (functionCalls && functionCalls.length > 0) {
-      // This block will only run in 'assistant' mode because tools are only provided then
       const call = functionCalls[0];
       let toolResult;
 
@@ -107,7 +107,6 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ reply: finalResponse }), { status: 200 });
 
     } else {
-      // If it's a regular chat message (will always be the case in 'journal' mode)
       const aiResponseText = response.text();
       return new Response(JSON.stringify({ reply: aiResponseText }), { status: 200 });
     }
