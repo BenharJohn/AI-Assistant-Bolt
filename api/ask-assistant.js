@@ -1,125 +1,138 @@
-// File: /api/ask-assistant.js
-import { createClient } from '@supabase/supabase-js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Sparkles } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
-// --- Define the "tools" for the Assistant mode ---
-// I've renamed this to 'assistantTools' to match its usage below and avoid confusion.
-const assistantTools = [
-  {
-    functionDeclarations: [
-      {
-        name: "createProjectWithSubtasks",
-        description: "Use for large, multi-step projects or goals that need to be broken down. Examples: 'plan my vacation', 'write my history essay', 'learn a new skill'. Do NOT use for simple, one-step tasks.",
-        parameters: { type: "OBJECT", properties: { title: { type: "STRING", description: "The title of the main project. e.g., 'Complete history essay'" }, due_date: { type: "STRING", description: "Optional deadline in YYYY-MM-DD format." } }, required: ["title"] }
-      },
-      {
-        name: "addTask",
-        description: "Use for simple, single-step tasks or reminders. e.g., 'Call the dentist', 'buy milk'",
-        parameters: { type: "OBJECT", properties: { title: { type: "STRING", description: "The title of the task." }, description: { type: "STRING", description: "Optional description." }, priority: { type: "STRING", description: "Priority can be 'low', 'medium', or 'high'. Defaults to 'medium'.", enum: ["low", "medium", "high"] } }, required: ["title"] }
-      }
-    ]
-  }
-];
-
-// --- Helper function for the createProject tool ---
-async function handleCreateProject(args, supabase, genAI) {
-  const { data: parentTaskData, error: parentError } = await supabase.from('tasks').insert({ title: args.title, due_date: args.due_date || null, status: 'pending', priority: 'high' }).select('id').single();
-  if (parentError) { console.error("Error creating parent task:", parentError); return { success: false, error: "Failed to create the main project task." }; }
-  
-  const parentId = parentTaskData.id;
-  const decompositionPrompt = `You are a world-class project manager. Your job is to break down a large goal into a list of 3-5 small, actionable subtasks.
-  The user's project is: "${args.title}".
-  The final project deadline is: ${args.due_date || 'not set'}.
-  If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline.
-  Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
-  
-  const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
-  const result = await proModel.generateContent(decompositionPrompt);
-  const responseText = result.response.text();
-  
-  try {
-    const { subtasks } = JSON.parse(responseText.trim());
-    const subtasksToInsert = subtasks.map(subtask => ({ title: subtask.title, description: subtask.description || '', due_date: subtask.due_date || null, parent_task_id: parentId, status: 'pending', priority: 'medium' }));
-    const { error: subtaskError } = await supabase.from('tasks').insert(subtasksToInsert);
-    if (subtaskError) throw subtaskError;
-    
-    return { success: true, result: `I have created the project "${args.title}" and broken it down into ${subtasks.length} sub-tasks for you.` };
-  } catch (e) {
-    console.error("Error parsing AI response for subtasks:", e, "Response was:", responseText);
-    return { success: false, error: "I created the main project, but had trouble with the sub-tasks." };
-  }
-}
-
-// --- Main handler function ---
-export default async (req, context) => {
-  if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
-
-  try {
-    const { message: userInput, history, mode = 'journal' } = await req.json();
-    if (!userInput) return new Response(JSON.stringify({ error: 'No message provided' }), { status: 400 });
-
-    const API_KEY = process.env.GEMINI_API_KEY;
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
-    if (!API_KEY || !supabaseUrl || !supabaseServiceKey) {
-      return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
-    }
-
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    let model;
-    let systemInstruction = "";
-
-    if (mode === 'assistant') {
-      // --- vvv THIS IS THE LINE I FIXED vvv ---
-      // Changed 'tools: assistantTools' to correctly reference the constant.
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools: assistantTools });
-      // --- Also improved the instruction to encourage tool use ---
-      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. You MUST use the provided tools to fulfill user requests for adding tasks or creating projects. Do not answer with a list of steps in text; instead, use the `createProjectWithSubtasks` tool to create real tasks.";
-    } else { 
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-      systemInstruction = "You are an empathetic, non-judgmental friend. Your goal is to listen, ask insightful follow-up questions, and help the user explore their thoughts. Start your responses with the symbol: ⟡";
-    }
-
-    const conversationHistory = (history || []).map(entry => ({
-        role: entry.type === 'user' ? 'user' : 'model',
-        parts: [{ text: entry.content }]
-    }));
-    
-    const chat = model.startChat({ history: conversationHistory, systemInstruction: { role: "system", parts: [{text: systemInstruction}]} });
-    const result = await chat.sendMessage(userInput);
-    const response = result.response;
-    
-    const functionCalls = response.functionCalls();
-
-    if (functionCalls && functionCalls.length > 0) {
-      const call = functionCalls[0];
-      let toolResult;
-
-      if (call.name === 'addTask') {
-        const { error } = await supabase.from('tasks').insert([{ ...call.args, status: 'pending' }]);
-        toolResult = error ? { success: false, error: error.message } : { success: true, result: `Task "${call.args.title}" was added.` };
-      } else if (call.name === 'createProjectWithSubtasks') {
-        toolResult = await handleCreateProject(call.args, supabase, genAI);
-      } else {
-        toolResult = { success: false, error: "Unknown tool requested." };
-      }
-
-      const result2 = await chat.sendMessage([{ functionResponse: { name: call.name, response: toolResult } }]);
-      const finalResponse = result2.response.text();
-      return new Response(JSON.stringify({ reply: finalResponse }), { status: 200 });
-
-    } else {
-      const aiResponseText = response.text();
-      return new Response(JSON.stringify({ reply: aiResponseText }), { status: 200 });
-    }
-
-  } catch (error) {
-    console.error("Critical error in function handler:", error.message, error.stack);
-    return new Response(JSON.stringify({ error: 'A critical error occurred.' }), { status: 500 });
-  }
+type ConversationEntry = {
+  type: 'user' | 'ai';
+  content: string;
 };
 
-export const config = { path: "/api/ask-assistant" };
+const AICompanion: React.FC = () => {
+  const [conversation, setConversation] = useState<Array<ConversationEntry>>([
+    { type: 'ai', content: 'How can I help you be more productive today?' }
+  ]);
+  const [input, setInput] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { reducedMotion } = useSettings();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(scrollToBottom, [conversation]);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!input.trim() || isProcessing) return;
+
+    const userMessage = input.trim();
+    const newUserEntry: ConversationEntry = { type: 'user', content: userMessage };
+
+    // --- vvv THIS IS THE FIX vvv ---
+    // We get the history *before* adding the new user message to the state.
+    const currentHistory = [...conversation];
+    // --- ^^^ END OF FIX ^^^ ---
+    
+    // Update the UI immediately for a responsive feel
+    setConversation(prev => [...prev, newUserEntry]);
+    setInput('');
+    setIsProcessing(true);
+
+    try {
+      const response = await fetch('/api/ask-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: userMessage,
+          // We send the history from *before* the user sent their new message.
+          // The backend will combine this history with the new message.
+          history: currentHistory.slice(-5), 
+          mode: 'assistant'
+        }),
+      });
+
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const data = await response.json();
+      const aiResponseContent = data.reply || "I'm having a little trouble with that request.";
+      const aiEntry: ConversationEntry = { type: 'ai', content: aiResponseContent };
+      
+      setConversation(prev => [...prev, aiEntry]);
+
+    } catch (error) {
+      console.error("Failed to fetch AI agent response:", error);
+      const errorEntry: ConversationEntry = { type: 'ai', content: "⟡ An error occurred. Please try again." };
+      setConversation(prev => [...prev, errorEntry]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // The rest of the JSX remains the same
+  return (
+    <div className="container mx-auto px-4 py-6">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-foreground">AI Assistant</h1>
+          <p className="text-muted-foreground mt-2">Let me handle the planning for you. Try asking me to create a task or break down a project.</p>
+        </div>
+
+        <div className="bg-card rounded-2xl border border-appBorder overflow-hidden shadow-warm h-[70vh]">
+          <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <AnimatePresence>
+                {conversation.map((entry, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={`flex gap-4 items-start ${entry.type === 'user' ? 'justify-end' : ''}`}
+                  >
+                    {entry.type === 'ai' && <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-1" />}
+                    <div className={`max-w-[85%] rounded-xl px-4 py-2.5 ${
+                      entry.type === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                    }`}>
+                      <p className="text-base whitespace-pre-wrap">{entry.content}</p>
+                    </div>
+                  </motion.div>
+                ))}
+                {isProcessing && (
+                  <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center space-x-2 text-muted-foreground pl-10">
+                    <span className="text-sm">Thinking...</span>
+                    {/* ... thinking animation dots ... */}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div ref={messagesEndRef} />
+            </div>
+            <div className="p-4 border-t border-appBorder bg-background/80 backdrop-blur-sm">
+              <form onSubmit={handleSubmit} className="flex items-center space-x-3">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="e.g., 'Break down my essay project...'"
+                  className="flex-1 w-full bg-background/50 border-appBorder rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:outline-none text-foreground placeholder-muted-foreground"
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isProcessing}
+                  aria-label="Send message"
+                  className="p-3 rounded-xl transition-all duration-200 bg-primary hover:bg-primary-hover text-primary-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
+                >
+                  <Send size={20} />
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AICompanion;
