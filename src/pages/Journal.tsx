@@ -98,7 +98,8 @@ const handleSubmit = async (e?: React.FormEvent) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: userEntryContent,
-          history: recentHistory // Send the history along with the message
+          history: recentHistory,
+          mode: 'journal'
         }),
       });
 
