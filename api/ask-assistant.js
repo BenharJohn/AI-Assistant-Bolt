@@ -2,40 +2,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// --- Define the "tools" our AI can use ---
-const tools = [
+// --- Define the "tools" the AI can use ONLY in 'assistant' mode ---
+const assistantTools = [
   {
     functionDeclarations: [
       {
         name: "createProjectWithSubtasks",
         description: "Use for large, multi-step projects or goals that need to be broken down. Examples: 'plan my vacation', 'write my history essay', 'learn a new skill'. Do NOT use for simple, one-step tasks.",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            title: {
-              type: "STRING",
-              description: "The title of the main project or goal. e.g., 'Complete history essay'"
-            },
-            due_date: {
-                type: "STRING",
-                description: "Optional deadline for the entire project in YYYY-MM-DD format."
-            }
-          },
-          required: ["title"]
-        }
+        parameters: { type: "OBJECT", properties: { title: { type: "STRING", description: "The title of the main project. e.g., 'Complete history essay'" }, due_date: { type: "STRING", description: "Optional deadline in YYYY-MM-DD format." } }, required: ["title"] }
       },
       {
         name: "addTask",
         description: "Use for simple, single-step tasks or reminders. e.g., 'Call the dentist', 'buy milk'",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            title: { type: "STRING", description: "The title of the task." },
-            description: { type: "STRING", description: "Optional description." },
-            priority: { type: "STRING", description: "Priority can be 'low', 'medium', or 'high'. Defaults to 'medium'.", enum: ["low", "medium", "high"] },
-          },
-          required: ["title"]
-        }
+        parameters: { type: "OBJECT", properties: { title: { type: "STRING", description: "The title of the task." }, description: { type: "STRING", description: "Optional description." }, priority: { type: "STRING", description: "Priority can be 'low', 'medium', or 'high'. Defaults to 'medium'.", enum: ["low", "medium", "high"] } }, required: ["title"] }
       }
     ]
   }
@@ -43,25 +22,11 @@ const tools = [
 
 // --- Helper function to handle the `createProjectWithSubtasks` tool call ---
 async function handleCreateProject(args, supabase, genAI) {
-  console.log("AI is calling createProjectWithSubtasks with args:", args);
+  const { data: parentTaskData, error: parentError } = await supabase.from('tasks').insert({ title: args.title, due_date: args.due_date || null, status: 'pending', priority: 'high' }).select('id').single();
+  if (parentError) { console.error("Error creating parent task:", parentError); return { success: false, error: "Failed to create the main project task." }; }
   
-  const { data: parentTaskData, error: parentError } = await supabase
-    .from('tasks')
-    .insert({ title: args.title, due_date: args.due_date || null, status: 'pending', priority: 'high' })
-    .select('id')
-    .single();
-
-  if (parentError || !parentTaskData) {
-    console.error("Error creating parent task:", parentError);
-    return { success: false, error: "Failed to create the main project task." };
-  }
   const parentId = parentTaskData.id;
-
-  const decompositionPrompt = `You are a world-class project manager. Your job is to break down a large goal into a list of 3-5 small, actionable subtasks.
-  The user's project is: "${args.title}".
-  The final project deadline is: ${args.due_date || 'not set'}.
-  If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline.
-  Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
+  const decompositionPrompt = `You are a project manager. Break down the project "${args.title}" into a list of 3-5 logical subtasks. The final project deadline is ${args.due_date || 'not set'}. If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline. Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
   
   const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
   const result = await proModel.generateContent(decompositionPrompt);
@@ -69,16 +34,7 @@ async function handleCreateProject(args, supabase, genAI) {
   
   try {
     const { subtasks } = JSON.parse(responseText.trim());
-    
-    const subtasksToInsert = subtasks.map(subtask => ({
-      title: subtask.title,
-      description: subtask.description || '',
-      due_date: subtask.due_date || null,
-      parent_task_id: parentId,
-      status: 'pending',
-      priority: 'medium'
-    }));
-
+    const subtasksToInsert = subtasks.map(subtask => ({ title: subtask.title, description: subtask.description || '', due_date: subtask.due_date || null, parent_task_id: parentId, status: 'pending', priority: 'medium' }));
     const { error: subtaskError } = await supabase.from('tasks').insert(subtasksToInsert);
     if (subtaskError) throw subtaskError;
     
@@ -94,7 +50,8 @@ export default async (req, context) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
 
   try {
-    const { message: userInput, history } = await req.json();
+    // Get the mode from the request, defaulting to 'journal' if not provided
+    const { message: userInput, history, mode = 'journal' } = await req.json();
     if (!userInput) return new Response(JSON.stringify({ error: 'No message provided' }), { status: 400 });
 
     const API_KEY = process.env.GEMINI_API_KEY;
@@ -107,20 +64,32 @@ export default async (req, context) => {
 
     const genAI = new GoogleGenerativeAI(API_KEY);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools });
+    
+    let model;
+    let systemInstruction = "";
+
+    // DYNAMIC BEHAVIOR BASED ON MODE
+    if (mode === 'assistant') {
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools: assistantTools });
+      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. Your goal is to help the user get things done by using the tools provided. Be friendly but concise.";
+    } else { // Default to journal mode
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+      systemInstruction = "You are an empathetic, non-judgmental friend. Your goal is to listen, ask insightful follow-up questions, and help the user explore their thoughts. Start your responses with the symbol: ⟡";
+    }
 
     const conversationHistory = (history || []).map(entry => ({
         role: entry.type === 'user' ? 'user' : 'model',
         parts: [{ text: entry.content }]
     }));
     
-    const chat = model.startChat({ history: conversationHistory });
+    const chat = model.startChat({ history: conversationHistory, systemInstruction: { role: "system", parts: [{text: systemInstruction}]} });
     const result = await chat.sendMessage(userInput);
     const response = result.response;
     
     const functionCalls = response.functionCalls();
 
     if (functionCalls && functionCalls.length > 0) {
+      // This block will only run in 'assistant' mode because tools are only provided then
       const call = functionCalls[0];
       let toolResult;
 
@@ -138,6 +107,7 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ reply: finalResponse }), { status: 200 });
 
     } else {
+      // If it's a regular chat message (will always be the case in 'journal' mode)
       const aiResponseText = response.text();
       return new Response(JSON.stringify({ reply: aiResponseText }), { status: 200 });
     }
