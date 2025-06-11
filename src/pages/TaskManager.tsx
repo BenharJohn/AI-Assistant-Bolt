@@ -7,20 +7,17 @@ import TaskCard from '../components/TaskCard';
 
 const TaskManager: React.FC = () => {
   const { reducedMotion } = useSettings();
-  const { state: taskState, addTask: addTaskToDb } = useTask(); // Use state and functions from our new context
+  const { state: taskState, addTask: addTaskToDb } = useTask();
   
-  // State for the manual "Add Task" modal
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
 
-  // This function now saves a new task directly to the Supabase database
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
-    // The addTaskToDb function now comes from our context and interacts with Supabase
     await addTaskToDb({
       title: newTaskTitle,
       description: newTaskDescription,
@@ -28,14 +25,12 @@ const TaskManager: React.FC = () => {
       status: 'pending',
     });
 
-    // Reset form fields and close the modal
     setNewTaskTitle('');
     setNewTaskDescription('');
     setNewTaskPriority('medium');
     setShowAddForm(false);
   };
 
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -74,7 +69,6 @@ const TaskManager: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Add Task Form Modal */}
         <AnimatePresence>
           {showAddForm && (
             <motion.div
@@ -101,7 +95,6 @@ const TaskManager: React.FC = () => {
                     <X size={20} />
                   </button>
                 </div>
-
                 <form onSubmit={handleAddTask} className="space-y-4">
                   <div>
                     <label htmlFor="title" className="block text-sm font-medium text-card-foreground mb-1">
@@ -166,13 +159,11 @@ const TaskManager: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Task Display Logic - Now powered by Supabase! */}
         <motion.div variants={itemVariants} className="space-y-6 mt-8">
           {taskState.loading ? (
             <p className="text-muted-foreground text-center animate-pulse">Loading tasks...</p>
           ) : taskState.tasks.length > 0 ? (
             taskState.tasks.map(task => (
-              // The TaskCard component will now render a task and its subtasks
               <TaskCard key={task.id} task={task} />
             ))
           ) : (
