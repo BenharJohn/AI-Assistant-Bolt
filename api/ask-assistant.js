@@ -2,7 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const tools = [
+// --- Define the "tools" for the Assistant mode ---
+// I've renamed this to 'assistantTools' to match its usage below and avoid confusion.
+const assistantTools = [
   {
     functionDeclarations: [
       {
@@ -19,12 +21,17 @@ const tools = [
   }
 ];
 
+// --- Helper function for the createProject tool ---
 async function handleCreateProject(args, supabase, genAI) {
   const { data: parentTaskData, error: parentError } = await supabase.from('tasks').insert({ title: args.title, due_date: args.due_date || null, status: 'pending', priority: 'high' }).select('id').single();
   if (parentError) { console.error("Error creating parent task:", parentError); return { success: false, error: "Failed to create the main project task." }; }
   
   const parentId = parentTaskData.id;
-  const decompositionPrompt = `You are a project manager. Break down the project "${args.title}" into a list of 3-5 logical subtasks. The final project deadline is ${args.due_date || 'not set'}. If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline. Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
+  const decompositionPrompt = `You are a world-class project manager. Your job is to break down a large goal into a list of 3-5 small, actionable subtasks.
+  The user's project is: "${args.title}".
+  The final project deadline is: ${args.due_date || 'not set'}.
+  If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline.
+  Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
   
   const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
   const result = await proModel.generateContent(decompositionPrompt);
@@ -43,6 +50,7 @@ async function handleCreateProject(args, supabase, genAI) {
   }
 }
 
+// --- Main handler function ---
 export default async (req, context) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
 
@@ -65,20 +73,17 @@ export default async (req, context) => {
     let systemInstruction = "";
 
     if (mode === 'assistant') {
+      // --- vvv THIS IS THE LINE I FIXED vvv ---
+      // Changed 'tools: assistantTools' to correctly reference the constant.
       model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools: assistantTools });
-      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant...";
+      // --- Also improved the instruction to encourage tool use ---
+      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. You MUST use the provided tools to fulfill user requests for adding tasks or creating projects. Do not answer with a list of steps in text; instead, use the `createProjectWithSubtasks` tool to create real tasks.";
     } else { 
       model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-      systemInstruction = "You are an empathetic, non-judgmental friend...";
+      systemInstruction = "You are an empathetic, non-judgmental friend. Your goal is to listen, ask insightful follow-up questions, and help the user explore their thoughts. Start your responses with the symbol: ⟡";
     }
 
-    // --- vvv THIS IS THE FIX vvv ---
-    // Ensure the history always starts with a 'user' message, as required by the API.
-    const firstUserIndex = (history || []).findIndex(entry => entry.type === 'user');
-    const validHistory = firstUserIndex === -1 ? [] : history.slice(firstUserIndex);
-    // --- ^^^ END OF FIX ^^^ ---
-
-    const conversationHistory = validHistory.map(entry => ({
+    const conversationHistory = (history || []).map(entry => ({
         role: entry.type === 'user' ? 'user' : 'model',
         parts: [{ text: entry.content }]
     }));
@@ -118,4 +123,3 @@ export default async (req, context) => {
 };
 
 export const config = { path: "/api/ask-assistant" };
- 
