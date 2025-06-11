@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles } from 'lucide-react';
-import { useSettings } from '../context/SettingsContext';
+// The useSettings import has been removed as it was unused and causing build issues.
 
 type ConversationEntry = {
   type: 'user' | 'ai';
@@ -15,7 +15,6 @@ const AICompanion: React.FC = () => {
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { reducedMotion } = useSettings();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -29,13 +28,9 @@ const AICompanion: React.FC = () => {
 
     const userMessage = input.trim();
     const newUserEntry: ConversationEntry = { type: 'user', content: userMessage };
-
-    // --- vvv THIS IS THE FIX vvv ---
-    // We get the history *before* adding the new user message to the state.
-    const currentHistory = [...conversation];
-    // --- ^^^ END OF FIX ^^^ ---
     
-    // Update the UI immediately for a responsive feel
+    const recentHistory = conversation.slice(-5);
+
     setConversation(prev => [...prev, newUserEntry]);
     setInput('');
     setIsProcessing(true);
@@ -46,9 +41,7 @@ const AICompanion: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           message: userMessage,
-          // We send the history from *before* the user sent their new message.
-          // The backend will combine this history with the new message.
-          history: currentHistory.slice(-5), 
+          history: recentHistory,
           mode: 'assistant'
         }),
       });
@@ -70,7 +63,6 @@ const AICompanion: React.FC = () => {
     }
   };
 
-  // The rest of the JSX remains the same
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="max-w-3xl mx-auto">
@@ -103,7 +95,9 @@ const AICompanion: React.FC = () => {
                 {isProcessing && (
                   <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center space-x-2 text-muted-foreground pl-10">
                     <span className="text-sm">Thinking...</span>
-                    {/* ... thinking animation dots ... */}
+                    <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+                    <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+                    <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-pulse"></div>
                   </motion.div>
                 )}
               </AnimatePresence>
