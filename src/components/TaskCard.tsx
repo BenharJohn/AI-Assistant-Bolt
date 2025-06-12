@@ -1,22 +1,31 @@
 import React from 'react';
-import { CheckCircle, Circle, Clock, AlertCircle } from 'lucide-react';
-import { Task } from '../context/TaskContext'; // Import your updated Task type
+import { CheckCircle, Circle, Clock, AlertCircle, X } from 'lucide-react';
+import { Task, useTask } from '../context/TaskContext';
 
 interface TaskCardProps {
   task: Task;
-  // You might pass update/delete functions from context here if needed
 }
 
 // A smaller component for rendering subtasks cleanly
 const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
+    const { updateTask } = useTask();
+
+    // Toggling a subtask's completion status
+    const handleToggle = () => {
+        const newStatus = subtask.status === 'completed' ? 'in-progress' : 'completed';
+        updateTask(subtask.id, { status: newStatus });
+    };
+
     return (
-        <div className="flex items-center space-x-3 pl-4 py-2 border-t border-appBorder/50">
-            {subtask.status === 'completed' ? (
-                <CheckCircle className="w-4 h-4 text-secondary" />
-            ) : (
-                <Circle className="w-4 h-4 text-muted-foreground" />
-            )}
-            <p className={`text-sm ${subtask.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+        <div className="flex items-center space-x-3 pl-8 pr-4 py-2 border-t border-appBorder/50">
+            <button onClick={handleToggle} className="transition-transform hover:scale-110 flex-shrink-0">
+                {subtask.status === 'completed' ? (
+                    <CheckCircle className="w-4 h-4 text-secondary" />
+                ) : (
+                    <Circle className="w-4 h-4 text-muted-foreground" />
+                )}
+            </button>
+            <p className={`text-sm flex-grow ${subtask.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                 {subtask.title}
             </p>
         </div>
@@ -25,13 +34,30 @@ const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
 
 
 const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
+  const { updateTask, deleteTask } = useTask();
+
+  // Toggling a parent task's completion status
+  const handleToggle = () => {
+    const newStatus = task.status === 'completed' ? 'in-progress' : 'completed';
+    updateTask(task.id, { status: newStatus });
+  };
   
+  // Helper functions for styling, same as before
   const getPriorityClasses = (priority?: string) => {
     switch (priority) {
-      case 'high': return 'border-primary bg-primary/5'; // Use tints of your theme colors
+      case 'high': return 'border-primary bg-primary/5';
       case 'medium': return 'border-secondary bg-secondary/5';
       case 'low': return 'border-muted-foreground/50 bg-muted/20';
       default: return 'border-appBorder bg-card';
+    }
+  };
+
+  const getPriorityIcon = (priority?: string) => {
+    switch (priority) {
+      case 'high': return <AlertCircle className="w-4 h-4 text-primary" />;
+      case 'medium': return <Clock className="w-4 h-4 text-secondary" />;
+      case 'low': return <Circle className="w-4 h-4 text-muted-foreground" />;
+      default: return null;
     }
   };
 
@@ -40,7 +66,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
       <div className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3 flex-1">
-            <button className="mt-1 transition-colors duration-200 hover:scale-110">
+            <button
+              onClick={handleToggle}
+              className="mt-1 transition-transform hover:scale-110"
+              aria-label={`Mark task ${task.status === 'completed' ? 'incomplete' : 'complete'}`}
+            >
               {task.status === 'completed' ? (
                 <CheckCircle className="w-5 h-5 text-secondary" />
               ) : (
@@ -59,27 +89,43 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
                 </p>
               )}
               
-              <div className="flex items-center space-x-4 mt-2">
+              <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2">
                 {task.priority && (
-                  <span className="text-xs font-medium capitalize text-muted-foreground">
-                    {task.priority} Priority
-                  </span>
+                  <div className="flex items-center space-x-1">
+                    {getPriorityIcon(task.priority)}
+                    <span className="text-xs font-medium capitalize text-muted-foreground">
+                      {task.priority}
+                    </span>
+                  </div>
                 )}
-                {task.dueDate && (
-                  <span className="text-xs text-muted-foreground">
-                    Due: {new Date(task.dueDate).toLocaleDateString()}
-                  </span>
+                
+                {task.due_date && (
+                  <div className="flex items-center space-x-1 text-muted-foreground">
+                    <Clock size={12} />
+                    <span className="text-xs">
+                      Due: {new Date(task.due_date).toLocaleDateString()}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
           </div>
+          
+          <div className="flex space-x-2 ml-4">
+              <button
+                onClick={() => deleteTask(task.id)}
+                aria-label="Delete task"
+                className="text-muted-foreground hover:text-primary transition-colors duration-200"
+              >
+                <X size={16}/>
+              </button>
+          </div>
         </div>
       </div>
       
-      {/* --- NEW: Render subtasks if they exist --- */}
       {task.subtasks && task.subtasks.length > 0 && (
         <div className="border-t-2 border-appBorder bg-background/50">
-            <div className="p-2 space-y-1">
+            <div className="py-2">
                 {task.subtasks.map(subtask => (
                     <SubtaskItem key={subtask.id} subtask={subtask} />
                 ))}
