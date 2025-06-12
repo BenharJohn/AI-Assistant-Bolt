@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // --- Define the "tools" our AI can use in 'assistant' mode ---
-const tools = [
+const assistantTools = [
   {
     functionDeclarations: [
       {
@@ -27,13 +27,24 @@ async function handleCreateProject(args, supabase, genAI) {
     if (parentError) throw parentError;
 
     const parentId = parentTaskData.id;
+    
+    // Using the faster 'flash' model is sufficient with a strong prompt.
+    const decompositionModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
     const decompositionPrompt = `You are a project manager. Break down the project "${args.title}" into a list of 3-5 logical subtasks. The final project deadline is ${args.due_date || 'not set'}. If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline. Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
     
-    const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-    const result = await proModel.generateContent(decompositionPrompt);
-    const responseText = result.response.text();
+    const result = await decompositionModel.generateContent(decompositionPrompt);
+    let responseText = result.response.text();
     
-    const { subtasks } = JSON.parse(responseText.trim());
+    // --- More Robust JSON Cleaning ---
+    // This finds the JSON block, even if the AI wraps it in Markdown.
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+        throw new Error("AI did not return valid JSON for subtasks.");
+    }
+    responseText = jsonMatch[0];
+    // --- End of Fix ---
+
+    const { subtasks } = JSON.parse(responseText);
     const subtasksToInsert = subtasks.map(subtask => ({ title: subtask.title, description: subtask.description || '', due_date: subtask.due_date || null, parent_task_id: parentId, status: 'pending', priority: 'medium' }));
 
     const { error: subtaskError } = await supabase.from('tasks').insert(subtasksToInsert);
@@ -69,13 +80,12 @@ export default async (req, context) => {
     let systemInstruction = "";
 
     if (mode === 'assistant') {
-      // --- vvv THIS IS THE LINE I FIXED vvv ---
-      // Changed `assistantTools` to correctly reference the `tools` constant.
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools: tools });
-      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. You MUST use the provided tools to fulfill user requests for adding tasks or creating projects. Do not answer with a list of steps in text; instead, use the `createProjectWithSubtasks` tool to create real tasks.";
+      // --- Improved System Instruction for the Assistant ---
+      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. Your primary function is to help the user manage their tasks. If the user's request clearly matches the description of a tool, you MUST call that tool. Do not ask for clarifying details if the tool's required parameters are met. Directly use the tool.";
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools: assistantTools });
     } else { 
-      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
       systemInstruction = "You are an empathetic, non-judgmental friend. Your goal is to listen, ask insightful follow-up questions, and help the user explore their thoughts. Start your responses with the symbol: ⟡";
+      model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
     }
     
     const firstUserIndex = (history || []).findIndex(entry => entry.type === 'user');
