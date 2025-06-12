@@ -44,7 +44,7 @@ const AICompanion: React.FC = () => {
 
     const userMessage = input.trim();
     const newUserEntry: ConversationEntry = { type: 'user', content: userMessage };
-    
+
     const recentHistory = conversation.slice(-5);
 
     setConversation(prev => [...prev, newUserEntry]);
@@ -55,7 +55,7 @@ const AICompanion: React.FC = () => {
       const response = await fetch('/api/ask-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: userMessage,
           history: recentHistory,
           mode: 'assistant'
@@ -63,11 +63,11 @@ const AICompanion: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
-      
+
       const data = await response.json();
       const aiResponseContent = data.reply || "I'm having a little trouble with that request.";
       const aiEntry: ConversationEntry = { type: 'ai', content: aiResponseContent };
-      
+
       setConversation(prev => [...prev, aiEntry]);
 
     } catch (error) {
