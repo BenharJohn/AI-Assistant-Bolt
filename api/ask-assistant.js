@@ -29,7 +29,7 @@ async function handleCreateProject(args, supabase, genAI) {
     const parentId = parentTaskData.id;
     const decompositionPrompt = `You are a project manager. Break down the project "${args.title}" into a list of 3-5 logical subtasks. The final project deadline is ${args.due_date || 'not set'}. If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline. Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
     
-    const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+    const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
     const result = await proModel.generateContent(decompositionPrompt);
     const responseText = result.response.text();
     
