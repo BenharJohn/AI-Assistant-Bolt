@@ -44,9 +44,11 @@ const AICompanion: React.FC = () => {
 
     const userMessage = input.trim();
     const newUserEntry: ConversationEntry = { type: 'user', content: userMessage };
-
-    const recentHistory = conversation.slice(-5);
-
+    
+    // Get the history *before* adding the new message to the state
+    const currentHistory = [...conversation];
+    
+    // Update the UI immediately
     setConversation(prev => [...prev, newUserEntry]);
     setInput('');
     setIsProcessing(true);
@@ -57,7 +59,7 @@ const AICompanion: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage,
-          history: recentHistory,
+          history: currentHistory.slice(-5), // Send the correct history
           mode: 'assistant'
         }),
       });
