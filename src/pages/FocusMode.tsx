@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings as SettingsIcon, Wind, CloudRain, Coffee, Leaf } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 
@@ -26,6 +26,7 @@ const FocusMode: React.FC = () => {
   
   // Refs for the timer interval and Tone.js players
   const timerRef = useRef<number | null>(null);
+  const alarmPlayer = useRef<any>(null);
   const noisePlayer = useRef<any>(null);
   const rainPlayer = useRef<any>(null);
   const coffeePlayer = useRef<any>(null);
@@ -39,10 +40,10 @@ const FocusMode: React.FC = () => {
           if (prevTime <= 1) {
             clearInterval(timerRef.current!);
             
-            if (soundOn) {
+            if (soundOn && typeof window !== 'undefined' && (window as any).Tone) {
               // Play a simple alarm sound with Tone.js when timer ends
-              const alarm = new (window as any).Tone.Synth().toDestination();
-              alarm.triggerAttackRelease("C5", "8n");
+              alarmPlayer.current = new (window as any).Tone.Synth().toDestination();
+              alarmPlayer.current.triggerAttackRelease("C5", "8n");
             }
             
             if (sessionType === 'focus') {
@@ -68,14 +69,16 @@ const FocusMode: React.FC = () => {
   
   // --- Ambient Sound Logic using Tone.js ---
   const stopAllSounds = () => {
-    if (noisePlayer.current) noisePlayer.current.stop();
-    if (rainPlayer.current) rainPlayer.current.stop();
-    if (coffeePlayer.current) coffeePlayer.current.stop();
-    if (naturePlayer.current) naturePlayer.current.stop();
+    if (noisePlayer.current) noisePlayer.current.stop().dispose();
+    if (rainPlayer.current) rainPlayer.current.stop().dispose();
+    if (coffeePlayer.current) coffeePlayer.current.stop().dispose();
+    if (naturePlayer.current) naturePlayer.current.stop().dispose();
     setActiveSound(null);
   }
   
   const toggleSoundPlayer = (sound: SoundPlayer) => {
+    if (typeof window === 'undefined' || !(window as any).Tone) return;
+
     if (activeSound === sound) {
       stopAllSounds();
       return;
@@ -84,33 +87,36 @@ const FocusMode: React.FC = () => {
     stopAllSounds();
     setActiveSound(sound);
     
-    // Ensure Tone.js context is running
     (window as any).Tone.start();
 
     switch (sound) {
       case 'noise':
-        noisePlayer.current = new (window as any).Tone.Noise("white").toDestination().start();
-        noisePlayer.current.volume.value = -20; // Lower volume for noise
+        noisePlayer.current = new (window as any).Tone.Noise("white").toDestination();
+        noisePlayer.current.volume.value = -24;
+        noisePlayer.current.start();
         break;
       case 'rain':
-        rainPlayer.current = new (window as any).Tone.Noise("pink").toDestination().start();
-        const filter = new (window as any).Tone.AutoFilter("4n").toDestination().start();
-        rainPlayer.current.connect(filter);
-        rainPlayer.current.volume.value = -15;
+        rainPlayer.current = new (window as any).Tone.Noise("pink").toDestination();
+        const rainFilter = new (window as any).Tone.AutoFilter("2n").toDestination().start();
+        rainPlayer.current.connect(rainFilter);
+        rainPlayer.current.volume.value = -20;
+        rainPlayer.current.start();
         break;
       case 'coffee':
-         coffeePlayer.current = new (window as any).Tone.Noise("brown").toDestination().start();
+         coffeePlayer.current = new (window as any).Tone.Noise("brown").toDestination();
          const coffeeFilter = new (window as any).Tone.AutoFilter({frequency: "8n", baseFrequency: 400, octaves: 2}).toDestination().start();
          coffeePlayer.current.connect(coffeeFilter);
-         coffeePlayer.current.volume.value = -12;
+         coffeePlayer.current.volume.value = -22;
+         coffeePlayer.current.start();
         break;
        case 'nature':
-         naturePlayer.current = new (window as any).Tone.Noise("pink").toDestination().start();
-         const lfo = new (window as any).Tone.LFO("2n", 400, 1000).start();
+         naturePlayer.current = new (window as any).Tone.Noise("pink").toDestination();
+         const lfo = new (window as any).Tone.LFO("4n", 600, 1200).start();
          const natureFilter = new (window as any).Tone.AutoFilter().toDestination().start();
          lfo.connect(natureFilter.frequency);
          naturePlayer.current.connect(natureFilter);
-         naturePlayer.current.volume.value = -20;
+         naturePlayer.current.volume.value = -25;
+         naturePlayer.current.start();
         break;
       default:
         break;
@@ -146,7 +152,6 @@ const FocusMode: React.FC = () => {
   };
   
   const getSessionColor = () => sessionType === 'focus' ? 'stroke-primary' : 'stroke-secondary';
-  const getSessionBgColor = () => sessionType === 'focus' ? 'bg-primary/10' : 'bg-secondary/10';
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl text-foreground">
@@ -227,7 +232,7 @@ const FocusMode: React.FC = () => {
                 <button 
                   key={id} 
                   onClick={() => toggleSoundPlayer(id)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl transition-colors text-sm font-medium h-20 ${activeSound === id ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}>
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl transition-colors text-sm font-medium h-20 ${activeSound === id ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80 text-foreground'}`}>
                   <Icon className="w-6 h-6 mb-1" />
                   {label}
                 </button>
@@ -246,7 +251,7 @@ const FocusMode: React.FC = () => {
              </div>
           </div>
         </div>
-      
+      </motion.div>
       
       {/* Settings Modal */}
       <AnimatePresence>
