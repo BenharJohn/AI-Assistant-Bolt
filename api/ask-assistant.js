@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// --- Define the "tools" our AI can use in 'assistant' mode ---
+// --- This section for Assistant Tools remains the same ---
 const assistantTools = [
   {
     functionDeclarations: [
@@ -19,30 +19,21 @@ const assistantTools = [
     ]
   }
 ];
-
-// --- Helper function to handle the `createProjectWithSubtasks` tool call ---
 async function handleCreateProject(args, supabase, genAI) {
   try {
     const { data: parentTaskData, error: parentError } = await supabase.from('tasks').insert({ title: args.title, due_date: args.due_date || null, status: 'pending', priority: 'high' }).select('id').single();
     if (parentError) throw parentError;
 
     const parentId = parentTaskData.id;
-    
-    // Using the faster 'flash' model is sufficient with a strong prompt.
     const decompositionModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
     const decompositionPrompt = `You are a project manager. Break down the project "${args.title}" into a list of 3-5 logical subtasks. The final project deadline is ${args.due_date || 'not set'}. If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline. Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
     
     const result = await decompositionModel.generateContent(decompositionPrompt);
     let responseText = result.response.text();
     
-    // --- More Robust JSON Cleaning ---
-    // This finds the JSON block, even if the AI wraps it in Markdown.
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-        throw new Error("AI did not return valid JSON for subtasks.");
-    }
+    if (!jsonMatch) throw new Error("AI did not return valid JSON for subtasks.");
     responseText = jsonMatch[0];
-    // --- End of Fix ---
 
     const { subtasks } = JSON.parse(responseText);
     const subtasksToInsert = subtasks.map(subtask => ({ title: subtask.title, description: subtask.description || '', due_date: subtask.due_date || null, parent_task_id: parentId, status: 'pending', priority: 'medium' }));
@@ -56,8 +47,8 @@ async function handleCreateProject(args, supabase, genAI) {
     return { success: false, error: "I had trouble breaking down the project into sub-tasks." };
   }
 }
+// --- End of Assistant Tools section ---
 
-// --- Main handler function ---
 export default async (req, context) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
 
@@ -66,26 +57,43 @@ export default async (req, context) => {
     if (!userInput) return new Response(JSON.stringify({ error: 'No message provided' }), { status: 400 });
 
     const API_KEY = process.env.GEMINI_API_KEY;
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    
+    // --- NEW: LOGIC TO HANDLE LEARNING TOOLS ---
+    // If the prompt is a direct command from the learning tools, handle it and exit early.
+    const isLearningToolCommand = userInput.startsWith('Explain the following concept:') || 
+                                userInput.startsWith('Summarize the following text:') || 
+                                userInput.startsWith('You are a study expert.');
+
+    if (isLearningToolCommand) {
+        console.log("Handling direct command for Learning Tools.");
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+        const result = await model.generateContent(userInput);
+        const response = result.response;
+        const aiResponseText = response.text();
+        return new Response(JSON.stringify({ reply: aiResponseText }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    // --- END OF NEW LOGIC ---
+
+    // If it's not a learning tool command, proceed with the conversational agent logic
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
-    if (!API_KEY || !supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
     }
 
-    const genAI = new GoogleGenerativeAI(API_KEY);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     let model;
     let systemInstruction = "";
 
     if (mode === 'assistant') {
-      // --- Improved System Instruction for the Assistant ---
-      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. Your primary function is to help the user manage their tasks. If the user's request clearly matches the description of a tool, you MUST call that tool. Do not ask for clarifying details if the tool's required parameters are met. Directly use the tool.";
       model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools: assistantTools });
+      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. You MUST use the provided tools to fulfill user requests. Do not ask for clarifying details if the tool's required parameters are met. Directly use the tool.";
     } else { 
-      systemInstruction = "You are an empathetic, non-judgmental friend. Your goal is to listen, ask insightful follow-up questions, and help the user explore their thoughts. Start your responses with the symbol: ⟡";
       model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+      systemInstruction = "You are an empathetic, non-judgmental friend. Your goal is to listen, ask insightful follow-up questions, and help the user explore their thoughts. Start your responses with the symbol: ⟡";
     }
     
     const firstUserIndex = (history || []).findIndex(entry => entry.type === 'user');
