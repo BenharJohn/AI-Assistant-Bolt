@@ -7,9 +7,9 @@ type SoundPlayer = 'noise' | 'rain' | 'coffee' | 'nature' | null;
 type GameStatus = 'idle' | 'showing' | 'playing' | 'lost';
 
 const soundSources = {
-  noise: 'https://cdn.pixabay.com/download/audio/2022/10/10/audio_2ff6192d19.mp3', // White Noise
-  rain: 'https://cdn.pixabay.com/download/audio/2022/08/04/audio_383f709a80.mp3', // Gentle Rain
-  coffee: 'https://cdn.pixabay.com/download/audio/2022/07/16/audio_95015b6b8d.mp3', // Coffee Shop Ambience
+  noise: 'https://www.tunepocket.com/royalty-free-music/airplane-white-noise-sleep-ambiance-loop/?srsltid=AfmBOoqTU6ITHWxAefBWZJy7hwlBL6CMhLROQKqAF2nO--mOGn8iYlJT#dwld_exp', // White Noise
+  rain: 'https://www.soundgator.com/download.php?free=Q1BPN3lXUGp6Y2Rpd2UvRkM2ZHJSdz09&token=1432_rain-04.mp3', // Gentle Rain
+  coffee: 'https://www.soundgator.com/download.php?free=T3ZkK2hzUEcyNm9WRUV0NTN3dDlzZz09&token=2152_quiet-coffee-shop-01.mp3', // Coffee Shop Ambience
   nature: 'https://www.soundgator.com/download.php?free=Z054eURJQkNkUlFKMUM4MWhMVlNpdz09&token=2080_forest-ambience-02.mp3', // Forest Sounds
 };
 
@@ -51,7 +51,7 @@ const FocusMode: React.FC = () => {
       soundPlayers.current[key] = new Audio(src);
       soundPlayers.current[key].loop = true;
     });
-    alarmSoundRef.current = new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_921c33dc64.mp3'); // A simple chime sound
+    alarmSoundRef.current = new Audio('https://www.tunepocket.com/royalty-free-music/food-ready-timer-bell/#dwld_exp'); // A simple chime sound
 
     // Cleanup function to pause sounds when the component unmounts
     return () => {
