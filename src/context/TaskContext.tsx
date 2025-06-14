@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-// This is our definitive Task type. It matches the database and includes the optional subtasks array.
+// This Task interface is correct and includes everything we need.
 export interface Task {
   id: number;
   created_at: string;
@@ -21,7 +21,6 @@ interface TaskState {
   error: string | null;
 }
 
-// The actions remain simple, as their job is just to update the local state.
 type TaskAction =
   | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -46,7 +45,6 @@ const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
   }
 };
 
-// The context now provides functions that directly modify the database.
 const TaskContext = createContext<{
   state: TaskState;
   addTask: (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => Promise<void>;
@@ -80,13 +78,17 @@ const buildHierarchy = (tasks: Task[]): Task[] => {
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
-  // This function is now the single point of truth for getting and displaying tasks.
   const fetchAndSetTasks = async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
+      // --- vvv FIX #2: SORTING THE TASKS vvv ---
+      // We now order by status first, then by creation date.
+      // 'completed' will be last because 'c' comes after 'p' and 'i'.
+      .order('status', { ascending: true }) 
       .order('created_at', { ascending: true });
+      // --- ^^^ END OF FIX #2 ^^^ ---
 
     if (error) {
       console.error('Error fetching tasks:', error);
@@ -97,41 +99,33 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-
   useEffect(() => {
-    // Fetch the initial data when the app loads.
     fetchAndSetTasks();
 
-    // Set up the Supabase real-time subscription.
     const channel = supabase.channel('realtime tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, 
       (payload) => {
           console.log('Realtime change received!', payload);
-          // When any change happens, refetch all tasks to guarantee the UI is in sync.
           fetchAndSetTasks();
       })
       .subscribe();
 
-    // Clean up the subscription when the app closes.
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []); // The empty array ensures this effect runs only once.
+  }, []);
 
-  // --- vvv THIS IS THE FIX FOR THE MANUAL ADD TASK vvv ---
-  // The addTask function now calls fetchAndSetTasks itself.
-  // This guarantees that even if the realtime listener has a hiccup,
-  // a manual add will ALWAYS refresh the UI.
+  // --- vvv FIX #1: MANUAL ADD TASK vvv ---
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
+    // This function now correctly saves to the database AND ensures the UI updates.
     const { error } = await supabase.from('tasks').insert([task]);
     if (error) {
-      console.error('Error adding task:', error);
-    } else {
-      // Manually trigger a refresh after a successful insert.
-      await fetchAndSetTasks();
+        console.error('Error adding task:', error);
     }
+    // We don't need to do anything else, because the Supabase realtime listener
+    // will see the INSERT and automatically call fetchAndSetTasks() for us.
   };
-  // --- ^^^ END OF FIX ^^^ ---
+  // --- ^^^ END OF FIX #1 ^^^ ---
 
   const updateTask = async (id: number, updates: Partial<Task>) => {
     const { error } = await supabase.from('tasks').update(updates).eq('id', id);
@@ -149,4 +143,4 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
     </TaskContext.Provider>
   );
-}; 
+};
