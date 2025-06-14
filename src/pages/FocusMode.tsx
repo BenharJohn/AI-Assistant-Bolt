@@ -1,65 +1,52 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings as SettingsIcon, Wind, CloudRain, Coffee, Leaf, X, BrainCircuit } from 'lucide-react';
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings as SettingsIcon, Wind, CloudRain, Coffee, Leaf, X } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 
 type SoundPlayer = 'noise' | 'rain' | 'coffee' | 'nature' | null;
 type GameStatus = 'idle' | 'showing' | 'playing' | 'lost';
 
 const soundSources = {
-  noise: 'https://www.soundgator.com/download.php?free=Zmszd2VOdjJsVmhqektVYzVoLzYrUT09&token=1454_bus-interior-ambience-01.mp3', // White Noise
-  rain: 'https://www.soundgator.com/download.php?free=Q1BPN3lXUGp6Y2Rpd2UvRkM2ZHJSdz09&token=1432_rain-04.mp3', // Gentle Rain
-  coffee: 'https://www.soundgator.com/download.php?free=T3ZkK2hzUEcyNm9WRUV0NTN3dDlzZz09&token=2152_quiet-coffee-shop-01.mp3', // Coffee Shop Ambience
-  nature: 'https://www.soundgator.com/download.php?free=Z054eURJQkNkUlFKMUM4MWhMVlNpdz09&token=2080_forest-ambience-02.mp3', // Forest Sounds
+  noise: 'https://www.soundgator.com/download.php?free=Zmszd2VOdjJsVmhqektVYzVoLzYrUT09&token=1454_bus-interior-ambience-01.mp3',
+  rain: 'https://www.soundgator.com/download.php?free=Q1BPN3lXUGp6Y2Rpd2UvRkM2ZHJSdz09&token=1432_rain-04.mp3',
+  coffee: 'https://www.soundgator.com/download.php?free=T3ZkK2hzUEcyNm9WRUV0NTN3dDlzZz09&token=2152_quiet-coffee-shop-01.mp3',
+  nature: 'https://www.soundgator.com/download.php?free=Z054eURJQkNkUlFKMUM4MWhMVlNpdz09&token=2080_forest-ambience-02.mp3',
 };
+const alarmSource = 'https://www.soundgator.com/download.php?free=YS9ZRWt5UE1CQ2g0MHRyMWdjaS9vZz09&token=1828_beep-short-01.mp3';
 
 const FocusMode: React.FC = () => {
-  // Timer State
   const [timerActive, setTimerActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [sessionType, setSessionType] = useState<'focus' | 'break'>('focus');
-  
-  // Settings State
   const [focusLength, setFocusLength] = useState(25);
   const [breakLength, setBreakLength] = useState(5);
   const [sessionsCompleted, setSessionsCompleted] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
-  
-  // Sound State
   const [soundOn, setSoundOn] = useState(true);
   const [activeSound, setActiveSound] = useState<SoundPlayer>(null);
-  
-  // --- NEW: Pattern Recall Game State ---
   const [gameSequence, setGameSequence] = useState<number[]>([]);
   const [playerSequence, setPlayerSequence] = useState<number[]>([]);
   const [gameStatus, setGameStatus] = useState<GameStatus>('idle');
   const [activeButton, setActiveButton] = useState<number | null>(null);
 
   const { reducedMotion } = useSettings();
-  
+
   const timerRef = useRef<number | null>(null);
   const soundPlayers = useRef<{ [key: string]: HTMLAudioElement }>({});
   const alarmSoundRef = useRef<HTMLAudioElement | null>(null);
 
-
-
-
-  // --- Initialize Audio Players ---
   useEffect(() => {
-    // Pre-load audio elements for smoother playback
     Object.entries(soundSources).forEach(([key, src]) => {
       soundPlayers.current[key] = new Audio(src);
       soundPlayers.current[key].loop = true;
     });
-    alarmSoundRef.current = new Audio('https://www.soundgator.com/download.php?free=YS9ZRWt5UE1CQ2g0MHRyMWdjaS9vZz09&token=1828_beep-short-01.mp3'); // A simple chime sound
+    alarmSoundRef.current = new Audio(alarmSource);
 
-    // Cleanup function to pause sounds when the component unmounts
     return () => {
       Object.values(soundPlayers.current).forEach(player => player.pause());
     };
   }, []);
 
-  // --- Core Timer Logic (with updated alarm sound) ---
   useEffect(() => {
     if (timerActive) {
       timerRef.current = window.setInterval(() => {
@@ -87,11 +74,10 @@ const FocusMode: React.FC = () => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [timerActive, sessionType, breakLength, focusLength, soundOn]);
 
-  // --- NEW: Ambient Sound Logic using HTML Audio ---
   const stopAllSounds = () => {
     Object.values(soundPlayers.current).forEach(player => {
         player.pause();
-        player.currentTime = 0; // Rewind the audio
+        player.currentTime = 0;
     });
     setActiveSound(null);
   };
@@ -101,9 +87,7 @@ const FocusMode: React.FC = () => {
       stopAllSounds();
       return;
     }
-
     stopAllSounds();
-    
     if (sound) {
       const player = soundPlayers.current[sound];
       if (player) {
@@ -113,55 +97,10 @@ const FocusMode: React.FC = () => {
     }
   };
 
-
-
-
-  
-  // --- Pattern Recall Game Logic ---
-  const startGame = () => {
-    setGameSequence([]);
-    setPlayerSequence([]);
-    setGameStatus('showing');
-  };
-
-  useEffect(() => {
-    if (gameStatus === 'showing') {
-      const nextSequence = [...gameSequence, Math.floor(Math.random() * 4)];
-      setGameSequence(nextSequence);
-      showSequence(nextSequence);
-    }
-  }, [gameStatus]);
-
-  const showSequence = (sequence: number[]) => {
-    let i = 0;
-    const interval = setInterval(() => {
-      setActiveButton(sequence[i]);
-      setTimeout(() => setActiveButton(null), 300);
-      i++;
-      if (i >= sequence.length) {
-        clearInterval(interval);
-        setGameStatus('playing');
-      }
-    }, 600);
-  };
-  
-  const handlePlayerInput = (buttonIndex: number) => {
-    if (gameStatus !== 'playing') return;
-    const newPlayerSequence = [...playerSequence, buttonIndex];
-    setPlayerSequence(newPlayerSequence);
-
-    if (newPlayerSequence[newPlayerSequence.length - 1] !== gameSequence[newPlayerSequence.length - 1]) {
-      setGameStatus('lost');
-      setTimeout(() => setGameStatus('idle'), 1500);
-      return;
-    }
-
-    if (newPlayerSequence.length === gameSequence.length) {
-      setPlayerSequence([]);
-      setTimeout(() => setGameStatus('showing'), 1000);
-    }
-  };
-
+  const startGame = () => { setGameSequence([]); setPlayerSequence([]); setGameStatus('showing'); };
+  useEffect(() => { if (gameStatus === 'showing') { const nextSequence = [...gameSequence, Math.floor(Math.random() * 4)]; setGameSequence(nextSequence); showSequence(nextSequence); } }, [gameStatus]);
+  const showSequence = (sequence: number[]) => { let i = 0; const interval = setInterval(() => { setActiveButton(sequence[i]); setTimeout(() => setActiveButton(null), 300); i++; if (i >= sequence.length) { clearInterval(interval); setGameStatus('playing'); } }, 600); };
+  const handlePlayerInput = (buttonIndex: number) => { if (gameStatus !== 'playing') return; const newPlayerSequence = [...playerSequence, buttonIndex]; setPlayerSequence(newPlayerSequence); if (newPlayerSequence[newPlayerSequence.length - 1] !== gameSequence[newPlayerSequence.length - 1]) { setGameStatus('lost'); setTimeout(() => setGameStatus('idle'), 1500); return; } if (newPlayerSequence.length === gameSequence.length) { setPlayerSequence([]); setTimeout(() => setGameStatus('showing'), 1000); } };
   const formatTime = (seconds: number): string => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
   const toggleTimer = () => setTimerActive(!timerActive);
   const resetTimer = () => { setTimerActive(false); setTimeLeft(focusLength * 60); setSessionType('focus'); };
@@ -242,7 +181,6 @@ const FocusMode: React.FC = () => {
         </div>
       </motion.div>
       
-      {/* Settings Modal */}
       <AnimatePresence>
         {showSettings && (
           <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
