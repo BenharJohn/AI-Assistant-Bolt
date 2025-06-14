@@ -10,7 +10,7 @@ const soundSources = {
   noise: 'https://cdn.pixabay.com/download/audio/2022/10/10/audio_2ff6192d19.mp3', // White Noise
   rain: 'https://cdn.pixabay.com/download/audio/2022/08/04/audio_383f709a80.mp3', // Gentle Rain
   coffee: 'https://cdn.pixabay.com/download/audio/2022/07/16/audio_95015b6b8d.mp3', // Coffee Shop Ambience
-  nature: 'https://cdn.pixabay.com/download/audio/2022/05/10/audio_5a83733363.mp3', // Forest Sounds
+  nature: 'https://www.soundgator.com/download.php?free=Z054eURJQkNkUlFKMUM4MWhMVlNpdz09&token=2080_forest-ambience-02.mp3', // Forest Sounds
 };
 
 const FocusMode: React.FC = () => {
