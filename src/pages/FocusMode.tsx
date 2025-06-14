@@ -7,7 +7,7 @@ type SoundPlayer = 'noise' | 'rain' | 'coffee' | 'nature' | null;
 type GameStatus = 'idle' | 'showing' | 'playing' | 'lost';
 
 const soundSources = {
-  noise: 'https://www.tunepocket.com/royalty-free-music/airplane-white-noise-sleep-ambiance-loop/?srsltid=AfmBOoqTU6ITHWxAefBWZJy7hwlBL6CMhLROQKqAF2nO--mOGn8iYlJT#dwld_exp', // White Noise
+  noise: 'https://www.tunepocket.com/royalty-free-music/airplane-white-noise-sleep-ambiance-loop/?srsltid=AfmBOoqTU6ITHWxAefBWZJy7hwlBL6CMhLROQKqAF2nO--mOGn8iYlJT#dwld_exp.mp3', // White Noise
   rain: 'https://www.soundgator.com/download.php?free=Q1BPN3lXUGp6Y2Rpd2UvRkM2ZHJSdz09&token=1432_rain-04.mp3', // Gentle Rain
   coffee: 'https://www.soundgator.com/download.php?free=T3ZkK2hzUEcyNm9WRUV0NTN3dDlzZz09&token=2152_quiet-coffee-shop-01.mp3', // Coffee Shop Ambience
   nature: 'https://www.soundgator.com/download.php?free=Z054eURJQkNkUlFKMUM4MWhMVlNpdz09&token=2080_forest-ambience-02.mp3', // Forest Sounds
