@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings as SettingsIcon, Wind, CloudRain, Coffee, Leaf } from 'lucide-react';
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings as SettingsIcon, Wind, CloudRain, Coffee, Leaf, X } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 
 // Define types for our sound players for better state management
@@ -69,10 +69,10 @@ const FocusMode: React.FC = () => {
   
   // --- Ambient Sound Logic using Tone.js ---
   const stopAllSounds = () => {
-    if (noisePlayer.current) noisePlayer.current.stop().dispose();
-    if (rainPlayer.current) rainPlayer.current.stop().dispose();
-    if (coffeePlayer.current) coffeePlayer.current.stop().dispose();
-    if (naturePlayer.current) naturePlayer.current.stop().dispose();
+    if (noisePlayer.current) { noisePlayer.current.stop().dispose(); noisePlayer.current = null; }
+    if (rainPlayer.current) { rainPlayer.current.stop().dispose(); rainPlayer.current = null; }
+    if (coffeePlayer.current) { coffeePlayer.current.stop().dispose(); coffeePlayer.current = null; }
+    if (naturePlayer.current) { naturePlayer.current.stop().dispose(); naturePlayer.current = null; }
     setActiveSound(null);
   }
   
@@ -198,8 +198,13 @@ const FocusMode: React.FC = () => {
                   animate={{ strokeDashoffset: 282.7 - (282.7 * calculateProgress()) / 100 }}
                   transition={{ duration: reducedMotion ? 0 : 0.5 }}
                 />
-                <text x="50" y="50" textAnchor="middle" dominantBaseline="central" className="text-5xl font-bold fill-foreground">
+                
+                {/* --- FIX 2: Corrected Timer Text Display --- */}
+                <text x="50" y="52" textAnchor="middle" dominantBaseline="middle" className="text-5xl font-bold fill-foreground">
                   {formatTime(timeLeft)}
+                </text>
+                 <text x="50" y="65" textAnchor="middle" dominantBaseline="middle" className="text-xs font-medium uppercase tracking-wider fill-muted-foreground">
+                  {sessionType}
                 </text>
               </svg>
             </div>
@@ -253,15 +258,22 @@ const FocusMode: React.FC = () => {
         </div>
       </motion.div>
       
-      {/* Settings Modal */}
+      {/* --- FIX 1: Functional Settings Modal --- */}
       <AnimatePresence>
         {showSettings && (
-          <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{opacity: 0}} 
+            animate={{opacity: 1}} 
+            exit={{opacity: 0}} 
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowSettings(false)}
+          >
             <motion.div
               initial={{ y: -30, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -30, opacity: 0 }}
               className="bg-card rounded-2xl shadow-xl max-w-sm w-full p-6 border border-appBorder"
+              onClick={(e) => e.stopPropagation()} // Prevents modal from closing when clicking inside
             >
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-semibold text-card-foreground">Timer Settings</h3>
