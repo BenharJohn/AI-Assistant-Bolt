@@ -6,6 +6,13 @@ import { useSettings } from '../context/SettingsContext';
 type SoundPlayer = 'noise' | 'rain' | 'coffee' | 'nature' | null;
 type GameStatus = 'idle' | 'showing' | 'playing' | 'lost';
 
+const soundSources = {
+  noise: 'https://cdn.pixabay.com/download/audio/2022/10/10/audio_2ff6192d19.mp3', // White Noise
+  rain: 'https://cdn.pixabay.com/download/audio/2022/08/04/audio_383f709a80.mp3', // Gentle Rain
+  coffee: 'https://cdn.pixabay.com/download/audio/2022/07/16/audio_95015b6b8d.mp3', // Coffee Shop Ambience
+  nature: 'https://cdn.pixabay.com/download/audio/2022/05/10/audio_5a83733363.mp3', // Forest Sounds
+};
+
 const FocusMode: React.FC = () => {
   // Timer State
   const [timerActive, setTimerActive] = useState(false);
@@ -31,18 +38,36 @@ const FocusMode: React.FC = () => {
   const { reducedMotion } = useSettings();
   
   const timerRef = useRef<number | null>(null);
-  const soundPlayers = useRef<any>({});
-  
-  // --- Core Timer Logic ---
+  const soundPlayers = useRef<{ [key: string]: HTMLAudioElement }>({});
+  const alarmSoundRef = useRef<HTMLAudioElement | null>(null);
+
+
+
+
+  // --- Initialize Audio Players ---
+  useEffect(() => {
+    // Pre-load audio elements for smoother playback
+    Object.entries(soundSources).forEach(([key, src]) => {
+      soundPlayers.current[key] = new Audio(src);
+      soundPlayers.current[key].loop = true;
+    });
+    alarmSoundRef.current = new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_921c33dc64.mp3'); // A simple chime sound
+
+    // Cleanup function to pause sounds when the component unmounts
+    return () => {
+      Object.values(soundPlayers.current).forEach(player => player.pause());
+    };
+  }, []);
+
+  // --- Core Timer Logic (with updated alarm sound) ---
   useEffect(() => {
     if (timerActive) {
       timerRef.current = window.setInterval(() => {
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             clearInterval(timerRef.current!);
-            if (soundOn && typeof window !== 'undefined' && (window as any).Tone) {
-              const alarm = new (window as any).Tone.Synth().toDestination();
-              alarm.triggerAttackRelease("C5", "8n");
+            if (soundOn && alarmSoundRef.current) {
+              alarmSoundRef.current.play();
             }
             if (sessionType === 'focus') {
               setSessionsCompleted(prev => prev + 1);
@@ -61,54 +86,36 @@ const FocusMode: React.FC = () => {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [timerActive, sessionType, breakLength, focusLength, soundOn]);
-  
-  // --- Improved Ambient Sound Logic ---
+
+  // --- NEW: Ambient Sound Logic using HTML Audio ---
   const stopAllSounds = () => {
-    Object.values(soundPlayers.current).forEach((player: any) => player?.stop().dispose());
-    soundPlayers.current = {};
+    Object.values(soundPlayers.current).forEach(player => {
+        player.pause();
+        player.currentTime = 0; // Rewind the audio
+    });
     setActiveSound(null);
   };
 
   const toggleSoundPlayer = (sound: SoundPlayer) => {
-    if (typeof window === 'undefined' || !(window as any).Tone) return;
-    if (activeSound === sound) { stopAllSounds(); return; }
-    stopAllSounds();
-    setActiveSound(sound);
-    (window as any).Tone.start();
-
-    let player;
-    switch (sound) {
-      case 'noise':
-        player = new (window as any).Tone.Noise("white").toDestination();
-        player.volume.value = -24;
-        break;
-      case 'rain':
-        player = new (window as any).Tone.Noise("pink").toDestination();
-        const rainFilter = new (window as any).Tone.AutoFilter("2n").toDestination().start();
-        player.connect(rainFilter);
-        player.volume.value = -20;
-        break;
-      case 'coffee':
-        const synth = new (window as any).Tone.MembraneSynth().toDestination();
-        const loop = new (window as any).Tone.Loop((time) => {
-            synth.triggerAttackRelease("C1", "8n", time);
-        }, "4n").start(0);
-        player = loop;
-        break;
-      case 'nature':
-        player = new (window as any).Tone.Noise("pink").toDestination();
-        const lfo = new (window as any).Tone.LFO("4n", 400, 1000).start();
-        const natureFilter = new (window as any).Tone.AutoFilter().toDestination().start();
-        lfo.connect(natureFilter.frequency);
-        player.connect(natureFilter);
-        player.volume.value = -25;
-        break;
+    if (activeSound === sound) {
+      stopAllSounds();
+      return;
     }
-    if (player) {
-      player.start();
-      soundPlayers.current[sound!] = player;
+
+    stopAllSounds();
+    
+    if (sound) {
+      const player = soundPlayers.current[sound];
+      if (player) {
+        player.play();
+        setActiveSound(sound);
+      }
     }
   };
+
+
+
+
   
   // --- Pattern Recall Game Logic ---
   const startGame = () => {
