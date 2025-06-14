@@ -51,7 +51,7 @@ const FocusMode: React.FC = () => {
       soundPlayers.current[key] = new Audio(src);
       soundPlayers.current[key].loop = true;
     });
-    alarmSoundRef.current = new Audio('https://www.tunepocket.com/royalty-free-music/food-ready-timer-bell/#dwld_exp'); // A simple chime sound
+    alarmSoundRef.current = new Audio('https://www.soundgator.com/download.php?free=YS9ZRWt5UE1CQ2g0MHRyMWdjaS9vZz09&token=1828_beep-short-01.mp3'); // A simple chime sound
 
     // Cleanup function to pause sounds when the component unmounts
     return () => {
