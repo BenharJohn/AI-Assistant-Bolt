@@ -246,7 +246,7 @@ const FocusMode: React.FC = () => {
              </div>
           </div>
         </div>
-      </div>
+      
       
       {/* Settings Modal */}
       <AnimatePresence>
