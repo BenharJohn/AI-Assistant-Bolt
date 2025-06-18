@@ -18,8 +18,8 @@ const assistantTools = [
       },
       {
         name: "navigateTo",
-        description: "Use to navigate the user to a page when they ask to see something. Examples: 'show me my tasks', 'open my journal'.",
-        parameters: { type: "OBJECT", properties: { path: { type: "STRING", description: "The path to navigate to. Must be one of: '/tasks', '/journal', '/focus', '/learning', '/settings'." } }, required: ["path"] }
+        description: "Use to navigate the user to a page when they ask for a specific context. Examples: 'show me my journal', 'I want to learn something'.",
+        parameters: { type: "OBJECT", properties: { path: { type: "STRING", description: "The path to navigate to. Must be one of: '/tasks', '/journal', '/focus', '/learning'." } }, required: ["path"] }
       },
       {
         name: "saveFlashcards",
@@ -50,23 +50,42 @@ const assistantTools = [
 
 // --- Helper function for the createProject tool ---
 async function handleCreateProject(args, supabase, genAI) {
-    // ... This function's logic remains the same
+  try {
+    const { data: parentTaskData, error: parentError } = await supabase.from('tasks').insert({ title: args.title, due_date: args.due_date || null, status: 'pending', priority: 'high' }).select('id').single();
+    if (parentError) throw parentError;
+
+    const parentId = parentTaskData.id;
+    const decompositionModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    const decompositionPrompt = `You are a project manager. Break down the project "${args.title}" into a list of 3-5 logical subtasks. The final project deadline is ${args.due_date || 'not set'}. If a date is provided, distribute the subtask due dates realistically between today (${new Date().toISOString().split('T')[0]}) and the final deadline. Respond ONLY with a valid JSON object in this exact format: {"subtasks": [{"title": "Subtask Title", "description": "A brief description", "due_date": "YYYY-MM-DD"}]}`;
+    
+    const result = await decompositionModel.generateContent(decompositionPrompt);
+    let responseText = result.response.text();
+    
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("AI did not return valid JSON for subtasks.");
+    responseText = jsonMatch[0];
+
+    const { subtasks } = JSON.parse(responseText);
+    const subtasksToInsert = subtasks.map(subtask => ({ title: subtask.title, description: subtask.description || '', due_date: subtask.due_date || null, parent_task_id: parentId, status: 'pending', priority: 'medium' }));
+
+    const { error: subtaskError } = await supabase.from('tasks').insert(subtasksToInsert);
+    if (subtaskError) throw subtaskError;
+    
+    return { success: true, result: `I have created the project "${args.title}" and broken it down into ${subtasks.length} sub-tasks for you.` };
+  } catch (e) {
+    console.error("Error in handleCreateProject:", e);
+    return { success: false, error: "I had trouble breaking down the project into sub-tasks." };
+  }
 }
 
-// --- NEW: Helper function for the saveFlashcards tool ---
+// --- Helper function for the saveFlashcards tool ---
 async function handleSaveFlashcards(args, supabase) {
     try {
         const { topic, cards } = args;
         if (!topic || !cards || !Array.isArray(cards) || cards.length === 0) {
             return { success: false, error: "Invalid data provided for flashcards." };
         }
-
-        const { data: setData, error: setError } = await supabase
-            .from('flashcard_sets')
-            .insert({ topic: topic })
-            .select('id')
-            .single();
-
+        const { data: setData, error: setError } = await supabase.from('flashcard_sets').insert({ topic: topic }).select('id').single();
         if (setError || !setData) throw setError;
         
         const setId = setData.id;
@@ -75,17 +94,14 @@ async function handleSaveFlashcards(args, supabase) {
             answer: card.answer,
             set_id: setId
         }));
-
         const { error: cardsError } = await supabase.from('flashcards').insert(flashcardsToInsert);
         if (cardsError) throw cardsError;
-
         return { success: true, result: `I've saved the flashcard set about "${topic}" for you.` };
     } catch (e) {
         console.error("Error in handleSaveFlashcards:", e);
         return { success: false, error: "I had trouble saving the flashcards." };
     }
 }
-
 
 // --- Main handler function ---
 export default async (req, context) => {
@@ -99,11 +115,8 @@ export default async (req, context) => {
     const genAI = new GoogleGenerativeAI(API_KEY);
     
     // --- Logic for Direct Learning Tool Commands ---
-    const isLearningToolCommand = userInput.startsWith('Explain the following concept:') || 
-                                  userInput.startsWith('Summarize the following text:') || 
-                                  userInput.startsWith('You are a study expert.');
-
-    if (isLearningToolCommand) {
+    if (mode === 'learning') {
+        console.log("Handling direct command for Learning Tools.");
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
         const result = await model.generateContent(userInput);
         const aiResponseText = result.response.text();
@@ -123,10 +136,10 @@ export default async (req, context) => {
 
     if (mode === 'assistant') {
       model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", tools: assistantTools });
-      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. You MUST use the provided tools to fulfill user requests...";
+      systemInstruction = "You are FocusAssist, a proactive and efficient personal assistant. You MUST use the provided tools to fulfill user requests. Do not ask for clarifying details if the tool's required parameters are met. Directly use the tool.";
     } else { 
       model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-      systemInstruction = "You are an empathetic, non-judgmental friend...";
+      systemInstruction = "You are an empathetic, non-judgmental friend. Your goal is to listen, ask insightful follow-up questions, and help the user explore their thoughts. Start your responses with the symbol: ⟡";
     }
     
     const firstUserIndex = (history || []).findIndex(entry => entry.type === 'user');
@@ -143,12 +156,8 @@ export default async (req, context) => {
       const call = functionCalls[0];
       let toolResult;
 
-      // Clean `if/else if` chain to handle all possible tools
       if (call.name === 'navigateTo') {
         toolResult = { success: true, path: call.args.path, didNavigate: true };
-        const result2 = await chat.sendMessage([{ functionResponse: { name: call.name, response: { content: JSON.stringify(toolResult) } } }]);
-        const finalResponseText = result2.response.text();
-        return new Response(JSON.stringify({ reply: finalResponseText, toolResult: toolResult }), { status: 200 });
       } else if (call.name === 'addTask') {
         const { error } = await supabase.from('tasks').insert([{ ...call.args, status: 'pending' }]);
         toolResult = error ? { success: false, error: error.message } : { success: true, result: `Task "${call.args.title}" was added.` };
@@ -160,13 +169,14 @@ export default async (req, context) => {
         toolResult = { success: false, error: "Unknown tool requested." };
       }
 
-      const result2 = await chat.sendMessage([{ functionResponse: { name: call.name, response: toolResult } }]);
-      const finalResponse = result2.response.text();
-      return new Response(JSON.stringify({ reply: finalResponse }), { status: 200 });
+      const result2 = await chat.sendMessage([{ functionResponse: { name: call.name, response: { content: JSON.stringify(toolResult) } } }]);
+      const finalResponseText = result2.response.text();
+      
+      return new Response(JSON.stringify({ reply: finalResponseText, toolResult: toolResult }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
     } else {
       const aiResponseText = response.text();
-      return new Response(JSON.stringify({ reply: aiResponseText }), { status: 200 });
+      return new Response(JSON.stringify({ reply: aiResponseText }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
   } catch (error) {
