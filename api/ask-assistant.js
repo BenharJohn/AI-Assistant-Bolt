@@ -15,7 +15,29 @@ const assistantTools = [
         name: "addTask",
         description: "Use for simple, single-step tasks or reminders. e.g., 'Call the dentist', 'buy milk'",
         parameters: { type: "OBJECT", properties: { title: { type: "STRING", description: "The title of the task." }, description: { type: "STRING", description: "Optional description." }, priority: { type: "STRING", description: "Priority can be 'low', 'medium', or 'high'. Defaults to 'medium'.", enum: ["low", "medium", "high"] } }, required: ["title"] }
+        
       }
+
+
+
+      {
+        name: "navigateTo",
+        description: "Use this to navigate the user to a different page within the application when they ask to see something. For example: 'show me my tasks', 'open my journal'.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            path: {
+              type: "STRING",
+              description: "The path to navigate to. Must be one of: '/tasks', '/journal', '/focus', '/learning', '/settings'."
+            }
+          },
+          required: ["path"]
+        }
+      }
+
+
+
+      
     ]
   }
 ];
