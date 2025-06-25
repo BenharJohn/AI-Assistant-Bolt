@@ -7,8 +7,9 @@ import TaskCard from '../components/TaskCard';
 
 const TaskManager: React.FC = () => {
   const { reducedMotion } = useSettings();
-  const { state: taskState, addTask: addTaskToDb } = useTask();
+  const { state: taskState, addTask: addTaskToDb } = useTask(); // Use state and functions from our live context
   
+  // State for the manual "Add Task" modal remains the same
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
@@ -18,6 +19,7 @@ const TaskManager: React.FC = () => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
+    // This function now correctly saves to the database via the context
     await addTaskToDb({
       title: newTaskTitle,
       description: newTaskDescription,
@@ -25,39 +27,24 @@ const TaskManager: React.FC = () => {
       status: 'pending',
     });
 
+    // Reset form fields and close the modal
     setNewTaskTitle('');
     setNewTaskDescription('');
     setNewTaskPriority('medium');
     setShowAddForm(false);
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: reducedMotion ? 0 : 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: reducedMotion ? 0 : 0.3 } }
-  };
+  const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground">
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div variants={containerVariants} initial="hidden" animate="visible">
         <motion.div variants={itemVariants} className="mb-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-foreground">Task Manager</h1>
-              <p className="text-muted-foreground mt-2">
-                Manage your projects and track progress with your AI assistant.
-              </p>
+              <p className="text-muted-foreground mt-2">Manage your projects and track progress with your AI assistant.</p>
             </div>
             <button
               onClick={() => setShowAddForm(true)}
@@ -69,6 +56,7 @@ const TaskManager: React.FC = () => {
           </div>
         </motion.div>
 
+        {/* Add Task Form Modal */}
         <AnimatePresence>
           {showAddForm && (
             <motion.div
@@ -88,70 +76,30 @@ const TaskManager: React.FC = () => {
               >
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold text-card-foreground">Add New Task</h2>
-                  <button
-                    onClick={() => setShowAddForm(false)}
-                    className="text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  >
+                  <button onClick={() => setShowAddForm(false)} className="text-muted-foreground hover:text-foreground">
                     <X size={20} />
                   </button>
                 </div>
                 <form onSubmit={handleAddTask} className="space-y-4">
                   <div>
-                    <label htmlFor="title" className="block text-sm font-medium text-card-foreground mb-1">
-                      Task Title
-                    </label>
-                    <input
-                      type="text"
-                      id="title"
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      placeholder="Enter task title..."
-                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 text-foreground"
-                      required
-                    />
+                    <label htmlFor="title" className="block text-sm font-medium text-card-foreground mb-1">Task Title</label>
+                    <input type="text" id="title" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Enter task title..." className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-foreground" required />
                   </div>
                   <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-card-foreground mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
-                      value={newTaskDescription}
-                      onChange={(e) => setNewTaskDescription(e.target.value)}
-                      placeholder="Enter task description..."
-                      rows={3}
-                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 resize-none text-foreground"
-                    />
+                    <label htmlFor="description" className="block text-sm font-medium text-card-foreground mb-1">Description</label>
+                    <textarea id="description" value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} placeholder="Enter task description..." rows={3} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 resize-none text-foreground" />
                   </div>
                   <div>
-                    <label htmlFor="priority" className="block text-sm font-medium text-card-foreground mb-1">
-                      Priority
-                    </label>
-                    <select
-                      id="priority"
-                      value={newTaskPriority}
-                      onChange={(e) => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
-                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 text-foreground"
-                    >
+                    <label htmlFor="priority" className="block text-sm font-medium text-card-foreground mb-1">Priority</label>
+                    <select id="priority" value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-foreground">
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
                       <option value="high">High</option>
                     </select>
                   </div>
                   <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors duration-200 font-medium"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover transition-colors duration-200 shadow-soft font-medium"
-                    >
-                      Add Task
-                    </button>
+                    <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium">Cancel</button>
+                    <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover shadow-soft font-medium">Add Task</button>
                   </div>
                 </form>
               </motion.div>
@@ -159,6 +107,7 @@ const TaskManager: React.FC = () => {
           )}
         </AnimatePresence>
 
+        {/* This now displays the LIVE data from your Supabase database */}
         <motion.div variants={itemVariants} className="space-y-6 mt-8">
           {taskState.loading ? (
             <p className="text-muted-foreground text-center animate-pulse">Loading tasks...</p>
@@ -169,7 +118,7 @@ const TaskManager: React.FC = () => {
           ) : (
             <div className="bg-card rounded-2xl p-8 text-center text-muted-foreground">
               <p className="font-medium">No tasks yet. Ready to get started?</p>
-              <p className="text-sm mt-2">Try asking your AI assistant: "Create a project to plan my birthday party for next month."</p>
+              <p className="text-sm mt-2">Try asking your AI assistant: "Create a project to plan my birthday party."</p>
             </div>
           )}
         </motion.div>
