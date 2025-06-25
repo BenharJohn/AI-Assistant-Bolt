@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
-// This is our definitive Task type. It matches the database and includes the optional subtasks array.
 export interface Task {
   id: number;
   created_at: string;
