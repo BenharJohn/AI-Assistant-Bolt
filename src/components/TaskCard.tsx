@@ -1,8 +1,9 @@
 import React from 'react';
-import { CheckCircle, Circle, Clock, AlertCircle, X } from 'lucide-react';
+import { CheckCircle, Circle, Clock, AlertCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Task, useTask } from '../context/TaskContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useSettings } from '../context/SettingsContext';
 
-// The props interface now requires the task but the functions are optional
 interface TaskCardProps {
   task: Task;
 }
@@ -11,6 +12,7 @@ interface TaskCardProps {
 const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
     const { updateTask } = useTask();
 
+    // Toggling a subtask's completion status
     const handleToggle = () => {
         const newStatus = subtask.status === 'completed' ? 'in-progress' : 'completed';
         updateTask(subtask.id, { status: newStatus });
@@ -35,6 +37,8 @@ const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
 
 const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
   const { updateTask, deleteTask } = useTask();
+  const { reducedMotion } = useSettings();
+  const [isExpanded, setIsExpanded] = React.useState(true);
 
   // Toggling a parent task's completion status
   const handleToggle = () => {
@@ -42,6 +46,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
     updateTask(task.id, { status: newStatus });
   };
   
+  // Helper functions for styling
   const getPriorityClasses = (priority?: string) => {
     switch (priority) {
       case 'high': return 'border-primary bg-primary/5';
@@ -61,7 +66,13 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
   };
 
   return (
-    <div className={`rounded-2xl border-2 transition-all duration-200 shadow-soft hover:shadow-warm ${getPriorityClasses(task.priority)}`}>
+    <motion.div 
+      layout 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className={`rounded-2xl border-2 transition-all duration-200 shadow-soft hover:shadow-warm ${getPriorityClasses(task.priority)}`}
+    >
       <div className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3 flex-1">
@@ -110,7 +121,16 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
             </div>
           </div>
           
-          <div className="flex space-x-2 ml-4">
+          <div className="flex items-center space-x-2 ml-4">
+              {task.subtasks && task.subtasks.length > 0 && (
+                <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    aria-label={isExpanded ? 'Collapse subtasks' : 'Expand subtasks'}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                    {isExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                </button>
+              )}
               <button
                 onClick={() => deleteTask(task.id)}
                 aria-label="Delete task"
@@ -122,15 +142,23 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
         </div>
       </div>
       
-      {task.subtasks && task.subtasks.length > 0 && (
-        <div className="border-t-2 border-appBorder bg-background/50">
-            <div className="py-2">
-                {task.subtasks.map(subtask => (
-                    <SubtaskItem key={subtask.id} subtask={subtask} />
-                ))}
-            </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {isExpanded && task.subtasks && task.subtasks.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: reducedMotion ? 0 : 0.3 }}
+            className="border-t-2 border-appBorder bg-background/50 overflow-hidden"
+          >
+              <div className="py-2">
+                  {task.subtasks.map(subtask => (
+                      <SubtaskItem key={subtask.id} subtask={subtask} />
+                  ))}
+              </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
