@@ -159,7 +159,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };
 
