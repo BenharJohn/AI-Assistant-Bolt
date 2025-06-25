@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
-// This Task interface is correct and includes everything we need.
+// This interface is correct and ready for subtasks.
 export interface Task {
   id: number;
   created_at: string;
@@ -21,6 +21,7 @@ interface TaskState {
   error: string | null;
 }
 
+// The reducer is now extremely simple. Its only job is to put tasks into the state.
 type TaskAction =
   | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -47,16 +48,14 @@ const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
 
 const TaskContext = createContext<{
   state: TaskState;
-  addTask: (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => Promise<any>;
-  updateTask: (id: number, updates: Partial<Task>) => Promise<any>;
-  deleteTask: (id: number) => Promise<any>;
+  addTask: (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => Promise<void>;
+  updateTask: (id: number, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: number) => Promise<void>;
 } | null>(null);
 
 export const useTask = () => {
   const context = useContext(TaskContext);
-  if (!context) {
-    throw new Error('useTask must be used within a TaskProvider');
-  }
+  if (!context) throw new Error('useTask must be used within a TaskProvider');
   return context;
 };
 
@@ -77,6 +76,7 @@ const buildHierarchy = (tasks: Task[]): Task[] => {
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
+  // We wrap this in useCallback to prevent it from being recreated on every render.
   const fetchAndSetTasks = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     const { data, error } = await supabase
@@ -95,7 +95,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    fetchAndSetTasks();
+    fetchAndSetTasks(); // Fetch initial data
 
     const channel = supabase.channel('realtime tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, 
@@ -105,15 +105,13 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [fetchAndSetTasks]);
 
+  // These functions now ONLY talk to the database. The realtime listener handles updating the UI.
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
     const { error } = await supabase.from('tasks').insert([task]);
     if (error) console.error('Error adding task:', error);
-    // Realtime listener will handle the UI update
   };
 
   const updateTask = async (id: number, updates: Partial<Task>) => {
