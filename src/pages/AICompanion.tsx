@@ -14,8 +14,6 @@ const AICompanion: React.FC = () => {
   const navigate = useNavigate();
   const { reducedMotion } = useSettings();
 
-
-  // Load conversation from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('assistant-conversation-history');
     if (saved) {
@@ -25,7 +23,6 @@ const AICompanion: React.FC = () => {
     }
   }, []);
 
-  // Save conversation to localStorage
   useEffect(() => {
     if (conversation.length > 0) {
       localStorage.setItem('assistant-conversation-history', JSON.stringify(conversation));
@@ -37,7 +34,6 @@ const AICompanion: React.FC = () => {
   };
 
   useEffect(scrollToBottom, [conversation]);
-
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e.preventDefault();
@@ -61,13 +57,13 @@ const AICompanion: React.FC = () => {
       const data = await response.json();
       const aiResponseContent = data.reply || "I had a problem with that request.";
 
-      // The AI can now return a special object if it wants to navigate
+      // --- NEW: Check if the AI wants to navigate ---
       if (data.toolResult && data.toolResult.didNavigate) {
         // Add the AI's confirmation message first
         const aiEntry: ConversationEntry = { type: 'ai', content: aiResponseContent };
         setConversation(prev => [...prev, aiEntry]);
-        // Then perform the navigation
-        setTimeout(() => navigate(data.toolResult.path), 1000);
+        // Then perform the navigation after a short delay
+        setTimeout(() => navigate(data.toolResult.path), 1200);
       } else {
         const aiEntry: ConversationEntry = { type: 'ai', content: aiResponseContent };
         setConversation(prev => [...prev, aiEntry]);
@@ -112,9 +108,6 @@ const AICompanion: React.FC = () => {
                   {isProcessing && (
                     <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex items-center space-x-2 text-muted-foreground pl-10">
                       <span className="text-sm">Thinking...</span>
-                      <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-                      <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-pulse [animation-delay:-0.15s]"></div>
-                      <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-pulse"></div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -126,7 +119,7 @@ const AICompanion: React.FC = () => {
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="e.g., 'Show me my tasks...'"
+                    placeholder="e.g., 'What is on my schedule today?'"
                     className="flex-1 w-full bg-background/50 border-appBorder rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:outline-none text-foreground placeholder-muted-foreground"
                   />
                   <button
