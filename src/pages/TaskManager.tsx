@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Pencil } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
@@ -81,7 +81,6 @@ const TaskManager: React.FC = () => {
     if (!formState.title.trim()) return;
     await addTask({ ...formState, status: 'pending' });
     setShowAddForm(false);
-    setFormState({ title: '', description: '', priority: 'medium', due_date: '' }); // Reset form
   };
 
   const handleUpdateTask = async (e: React.FormEvent) => {
