@@ -7,20 +7,20 @@ import TaskCard from '../components/TaskCard';
 
 const TaskManager: React.FC = () => {
   const { reducedMotion } = useSettings();
-  const { state: taskState, addTask: addTaskToDb } = useTask(); // Use state and functions from our live context
+  const { state: taskState, addTask } = useTask(); // Use state and functions from our live context
   
-  // State for the manual "Add Task" modal remains the same
+  // State for the manual "Add Task" modal
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
 
+  // This function now correctly saves to the database via the context
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
-    // This function now correctly saves to the database via the context
-    await addTaskToDb({
+    await addTask({
       title: newTaskTitle,
       description: newTaskDescription,
       priority: newTaskPriority,
@@ -46,17 +46,13 @@ const TaskManager: React.FC = () => {
               <h1 className="text-2xl font-bold text-foreground">Task Manager</h1>
               <p className="text-muted-foreground mt-2">Manage your projects and track progress with your AI assistant.</p>
             </div>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center space-x-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:bg-primary-hover transition-colors duration-200 shadow-soft"
-            >
+            <button onClick={() => setShowAddForm(true)} className="btn-primary flex items-center space-x-2">
               <Plus size={16} />
               <span>Add Task</span>
             </button>
           </div>
         </motion.div>
 
-        {/* Add Task Form Modal */}
         <AnimatePresence>
           {showAddForm && (
             <motion.div
@@ -76,9 +72,7 @@ const TaskManager: React.FC = () => {
               >
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold text-card-foreground">Add New Task</h2>
-                  <button onClick={() => setShowAddForm(false)} className="text-muted-foreground hover:text-foreground">
-                    <X size={20} />
-                  </button>
+                  <button onClick={() => setShowAddForm(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
                 </div>
                 <form onSubmit={handleAddTask} className="space-y-4">
                   <div>
@@ -99,7 +93,7 @@ const TaskManager: React.FC = () => {
                   </div>
                   <div className="flex justify-end space-x-3 pt-4">
                     <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium">Cancel</button>
-                    <button type="submit" className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover shadow-soft font-medium">Add Task</button>
+                    <button type="submit" className="btn-primary">Add Task</button>
                   </div>
                 </form>
               </motion.div>
@@ -107,7 +101,6 @@ const TaskManager: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* This now displays the LIVE data from your Supabase database */}
         <motion.div variants={itemVariants} className="space-y-6 mt-8">
           {taskState.loading ? (
             <p className="text-muted-foreground text-center animate-pulse">Loading tasks...</p>
@@ -118,11 +111,10 @@ const TaskManager: React.FC = () => {
           ) : (
             <div className="bg-card rounded-2xl p-8 text-center text-muted-foreground">
               <p className="font-medium">No tasks yet. Ready to get started?</p>
-              <p className="text-sm mt-2">Try asking your AI assistant: "Create a project to plan my birthday party."</p>
+              <p className="text-sm mt-2">Try the "Add Task" button or ask the AI to create a project for you.</p>
             </div>
           )}
         </motion.div>
-
       </motion.div>
     </div>
   );
