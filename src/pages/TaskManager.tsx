@@ -75,26 +75,26 @@ const TaskManager: React.FC = () => {
                   <button onClick={() => setShowAddForm(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
                 </div>
                 <form onSubmit={handleAddTask} className="space-y-4">
-                  <div>
-                    <label htmlFor="title" className="block text-sm font-medium text-card-foreground mb-1">Task Title</label>
-                    <input type="text" id="title" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Enter task title..." className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-foreground" required />
-                  </div>
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-card-foreground mb-1">Description</label>
-                    <textarea id="description" value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} placeholder="Enter task description..." rows={3} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 resize-none text-foreground" />
-                  </div>
-                  <div>
-                    <label htmlFor="priority" className="block text-sm font-medium text-card-foreground mb-1">Priority</label>
-                    <select id="priority" value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-foreground">
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                  </div>
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium">Cancel</button>
-                    <button type="submit" className="btn-primary">Add Task</button>
-                  </div>
+                    <div>
+                        <label htmlFor="title" className="block text-sm font-medium text-card-foreground mb-1">Task Title</label>
+                        <input type="text" id="title" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Enter task title..." className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-foreground" required />
+                    </div>
+                    <div>
+                        <label htmlFor="description" className="block text-sm font-medium text-card-foreground mb-1">Description</label>
+                        <textarea id="description" value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} placeholder="Enter task description..." rows={3} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 resize-none text-foreground" />
+                    </div>
+                    <div>
+                        <label htmlFor="priority" className="block text-sm font-medium text-card-foreground mb-1">Priority</label>
+                        <select id="priority" value={newTaskPriority} onChange={(e) => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 text-foreground">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div className="flex justify-end space-x-3 pt-4">
+                        <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium">Cancel</button>
+                        <button type="submit" className="btn-primary">Add Task</button>
+                    </div>
                 </form>
               </motion.div>
             </motion.div>
