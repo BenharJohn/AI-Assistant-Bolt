@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
-// This Task interface is correct and includes everything we need.
 export interface Task {
   id: number;
   created_at: string;
@@ -76,7 +75,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
   const fetchAndSetTasks = useCallback(async () => {
-    dispatch({ type: 'SET_LOADING', payload: true });
+    // No need to set loading here as the listener might call it frequently
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
@@ -93,6 +92,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
+    // Initial fetch when the app loads
+    dispatch({ type: 'SET_LOADING', payload: true });
     fetchAndSetTasks();
 
     const channel = supabase.channel('realtime tasks')
@@ -109,29 +110,36 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [fetchAndSetTasks]);
 
   // --- vvv THIS IS THE FIX vvv ---
-  // The addTask function now calls fetchAndSetTasks itself.
-  // This guarantees that even if the realtime listener has a hiccup,
-  // a manual add will ALWAYS refresh the UI.
+  // These functions now manually call fetchAndSetTasks AFTER the database operation.
+  // This guarantees the UI updates instantly for manual actions.
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
     const { error } = await supabase.from('tasks').insert([task]);
     if (error) {
       console.error('Error adding task:', error);
+    } else {
+      await fetchAndSetTasks(); // Manually refresh
     }
-    // We no longer rely only on the realtime listener for manual adds.
-    // We still keep the listener for when the AI adds tasks.
   };
-  // --- ^^^ END OF FIX ^^^ ---
 
   const updateTask = async (id: number, updates: Partial<Task>) => {
     const { error } = await supabase.from('tasks').update(updates).eq('id', id);
-    if (error) console.error('Error updating task:', error);
+    if (error) {
+      console.error('Error updating task:', error);
+    } else {
+       await fetchAndSetTasks(); // Manually refresh
+    }
   };
 
   const deleteTask = async (id: number) => {
     await supabase.from('tasks').delete().eq('parent_task_id', id);
     const { error } = await supabase.from('tasks').delete().eq('id', id);
-    if (error) console.error('Error deleting task:', error);
+    if (error) {
+      console.error('Error deleting task:', error);
+    } else {
+       await fetchAndSetTasks(); // Manually refresh
+    }
   };
+  // --- ^^^ END OF FIX ^^^ ---
 
   return (
     <TaskContext.Provider value={{ state, addTask, updateTask, deleteTask }}>
