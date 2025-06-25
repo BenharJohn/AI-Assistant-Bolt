@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
-// This interface is correct and ready for subtasks.
+// This is our definitive Task type. It matches the database and includes the optional subtasks array.
 export interface Task {
   id: number;
   created_at: string;
@@ -21,7 +21,6 @@ interface TaskState {
   error: string | null;
 }
 
-// The reducer is now extremely simple. Its only job is to put tasks into the state.
 type TaskAction =
   | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -59,6 +58,7 @@ export const useTask = () => {
   return context;
 };
 
+// This helper function to build the hierarchy is correct and remains the same.
 const buildHierarchy = (tasks: Task[]): Task[] => {
     const taskMap = new Map(tasks.map(task => [task.id, { ...task, subtasks: [] as Task[] }]));
     const hierarchicalTasks: Task[] = [];
@@ -95,17 +95,23 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    fetchAndSetTasks(); // Fetch initial data
+    // Fetch initial data when the app loads.
+    fetchAndSetTasks();
 
+    // Set up the Supabase real-time subscription.
     const channel = supabase.channel('realtime tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, 
       (payload) => {
           console.log('Realtime change received! Refetching tasks.', payload);
+          // When any change happens, refetch all tasks to guarantee the UI is in sync.
           fetchAndSetTasks();
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Clean up the subscription when the app closes.
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchAndSetTasks]);
 
   // These functions now ONLY talk to the database. The realtime listener handles updating the UI.
@@ -120,6 +126,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteTask = async (id: number) => {
+    // Important: First delete all children, then delete the parent.
     await supabase.from('tasks').delete().eq('parent_task_id', id);
     const { error } = await supabase.from('tasks').delete().eq('id', id);
     if (error) console.error('Error deleting task:', error);
