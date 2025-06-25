@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
 // This Task interface is correct and includes everything we need.
@@ -47,9 +47,9 @@ const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
 
 const TaskContext = createContext<{
   state: TaskState;
-  addTask: (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => Promise<void>;
-  updateTask: (id: number, updates: Partial<Task>) => Promise<void>;
-  deleteTask: (id: number) => Promise<void>;
+  addTask: (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => Promise<any>;
+  updateTask: (id: number, updates: Partial<Task>) => Promise<any>;
+  deleteTask: (id: number) => Promise<any>;
 } | null>(null);
 
 export const useTask = () => {
@@ -60,7 +60,6 @@ export const useTask = () => {
   return context;
 };
 
-// This helper function to build the hierarchy is correct and remains the same.
 const buildHierarchy = (tasks: Task[]): Task[] => {
     const taskMap = new Map(tasks.map(task => [task.id, { ...task, subtasks: [] as Task[] }]));
     const hierarchicalTasks: Task[] = [];
@@ -78,17 +77,13 @@ const buildHierarchy = (tasks: Task[]): Task[] => {
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
-  const fetchAndSetTasks = async () => {
+  const fetchAndSetTasks = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
-      // --- vvv FIX #2: SORTING THE TASKS vvv ---
-      // We now order by status first, then by creation date.
-      // 'completed' will be last because 'c' comes after 'p' and 'i'.
       .order('status', { ascending: true }) 
       .order('created_at', { ascending: true });
-      // --- ^^^ END OF FIX #2 ^^^ ---
 
     if (error) {
       console.error('Error fetching tasks:', error);
@@ -97,7 +92,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const hierarchicalTasks = buildHierarchy(data || []);
       dispatch({ type: 'SET_TASKS', payload: hierarchicalTasks });
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAndSetTasks();
@@ -105,7 +100,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const channel = supabase.channel('realtime tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, 
       (payload) => {
-          console.log('Realtime change received!', payload);
+          console.log('Realtime change received! Refetching tasks.', payload);
           fetchAndSetTasks();
       })
       .subscribe();
@@ -113,19 +108,13 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchAndSetTasks]);
 
-  // --- vvv FIX #1: MANUAL ADD TASK vvv ---
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
-    // This function now correctly saves to the database AND ensures the UI updates.
     const { error } = await supabase.from('tasks').insert([task]);
-    if (error) {
-        console.error('Error adding task:', error);
-    }
-    // We don't need to do anything else, because the Supabase realtime listener
-    // will see the INSERT and automatically call fetchAndSetTasks() for us.
+    if (error) console.error('Error adding task:', error);
+    // Realtime listener will handle the UI update
   };
-  // --- ^^^ END OF FIX #1 ^^^ ---
 
   const updateTask = async (id: number, updates: Partial<Task>) => {
     const { error } = await supabase.from('tasks').update(updates).eq('id', id);
