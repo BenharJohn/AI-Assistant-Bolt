@@ -1,11 +1,12 @@
 import React from 'react';
-import { CheckCircle, Circle, Clock, AlertCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle, Circle, Clock, AlertCircle, X, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { Task, useTask } from '../context/TaskContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../context/SettingsContext';
 
 interface TaskCardProps {
   task: Task;
+  onEdit: (task: Task) => void; // Add the onEdit prop
 }
 
 // A smaller component for rendering subtasks cleanly
@@ -35,7 +36,7 @@ const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
 };
 
 
-const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
   const { updateTask, deleteTask } = useTask();
   const { reducedMotion } = useSettings();
   const [isExpanded, setIsExpanded] = React.useState(true);
@@ -131,6 +132,13 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
                     {isExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                 </button>
               )}
+              <button
+                onClick={() => onEdit(task)}
+                aria-label="Edit task"
+                className="text-muted-foreground hover:text-secondary transition-colors duration-200"
+              >
+                  <Pencil size={16} />
+              </button>
               <button
                 onClick={() => deleteTask(task.id)}
                 aria-label="Delete task"
