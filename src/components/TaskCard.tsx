@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle, Circle, Clock, AlertCircle, X } from 'lucide-react';
 import { Task, useTask } from '../context/TaskContext';
 
+// The props interface now requires the task but the functions are optional
 interface TaskCardProps {
   task: Task;
 }
@@ -10,7 +11,6 @@ interface TaskCardProps {
 const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
     const { updateTask } = useTask();
 
-    // Toggling a subtask's completion status
     const handleToggle = () => {
         const newStatus = subtask.status === 'completed' ? 'in-progress' : 'completed';
         updateTask(subtask.id, { status: newStatus });
@@ -42,7 +42,6 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
     updateTask(task.id, { status: newStatus });
   };
   
-  // Helper functions for styling, same as before
   const getPriorityClasses = (priority?: string) => {
     switch (priority) {
       case 'high': return 'border-primary bg-primary/5';
