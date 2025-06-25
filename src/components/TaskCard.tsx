@@ -6,7 +6,7 @@ import { useSettings } from '../context/SettingsContext';
 
 interface TaskCardProps {
   task: Task;
-  onEdit: (task: Task) => void; // Add the onEdit prop
+  onEdit: (task: Task) => void; // Function passed from TaskManager to open the edit modal
 }
 
 // A smaller component for rendering subtasks cleanly
@@ -69,8 +69,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
   return (
     <motion.div 
       layout 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       className={`rounded-2xl border-2 transition-all duration-200 shadow-soft hover:shadow-warm ${getPriorityClasses(task.priority)}`}
     >
