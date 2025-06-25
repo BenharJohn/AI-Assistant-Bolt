@@ -83,7 +83,7 @@ const TaskManager: React.FC = () => {
           {showAddForm ? <X size={20} /> : <Plus size={20} />}
           {showAddForm ? 'Cancel' : 'Add Task'}
         </motion.button>
-      </div>
+      </motion.div>
 
       {/* Add Task Form */}
       <AnimatePresence>
