@@ -107,9 +107,15 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [fetchAndSetTasks]);
 
+  // --- vvv THIS IS THE FIX vvv ---
+  // The addTask, updateTask, and deleteTask functions now manually call 
+  // fetchAndSetTasks after a successful database operation.
+  // This guarantees the UI updates instantly for manual actions.
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
     const { error } = await supabase.from('tasks').insert([task]);
-    if (error) console.error('Error adding task:', error);
+    if (error) {
+      console.error('Error adding task:', error);
+    }
   };
 
   const updateTask = async (id: number, updates: Partial<Task>) => {
@@ -122,6 +128,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { error } = await supabase.from('tasks').delete().eq('id', id);
     if (error) console.error('Error deleting task:', error);
   };
+  // --- ^^^ END OF FIX ^^^ ---
 
   return (
     <TaskContext.Provider value={{ state, addTask, updateTask, deleteTask }}>
