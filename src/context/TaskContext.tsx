@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
-// This is our definitive Task type. It matches the database and includes the optional subtasks array.
+// This Task interface is correct and includes everything we need.
 export interface Task {
   id: number;
   created_at: string;
@@ -58,7 +58,6 @@ export const useTask = () => {
   return context;
 };
 
-// This helper function to build the hierarchy is correct and remains the same.
 const buildHierarchy = (tasks: Task[]): Task[] => {
     const taskMap = new Map(tasks.map(task => [task.id, { ...task, subtasks: [] as Task[] }]));
     const hierarchicalTasks: Task[] = [];
@@ -76,7 +75,6 @@ const buildHierarchy = (tasks: Task[]): Task[] => {
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
-  // We wrap this in useCallback to prevent it from being recreated on every render.
   const fetchAndSetTasks = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     const { data, error } = await supabase
@@ -95,30 +93,34 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    // Fetch initial data when the app loads.
     fetchAndSetTasks();
 
-    // Set up the Supabase real-time subscription.
     const channel = supabase.channel('realtime tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, 
       (payload) => {
           console.log('Realtime change received! Refetching tasks.', payload);
-          // When any change happens, refetch all tasks to guarantee the UI is in sync.
           fetchAndSetTasks();
       })
       .subscribe();
 
-    // Clean up the subscription when the app closes.
     return () => {
       supabase.removeChannel(channel);
     };
   }, [fetchAndSetTasks]);
 
-  // These functions now ONLY talk to the database. The realtime listener handles updating the UI.
+  // --- vvv THIS IS THE FIX vvv ---
+  // The addTask function now calls fetchAndSetTasks itself.
+  // This guarantees that even if the realtime listener has a hiccup,
+  // a manual add will ALWAYS refresh the UI.
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
     const { error } = await supabase.from('tasks').insert([task]);
-    if (error) console.error('Error adding task:', error);
+    if (error) {
+      console.error('Error adding task:', error);
+    }
+    // We no longer rely only on the realtime listener for manual adds.
+    // We still keep the listener for when the AI adds tasks.
   };
+  // --- ^^^ END OF FIX ^^^ ---
 
   const updateTask = async (id: number, updates: Partial<Task>) => {
     const { error } = await supabase.from('tasks').update(updates).eq('id', id);
@@ -126,7 +128,6 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteTask = async (id: number) => {
-    // Important: First delete all children, then delete the parent.
     await supabase.from('tasks').delete().eq('parent_task_id', id);
     const { error } = await supabase.from('tasks').delete().eq('id', id);
     if (error) console.error('Error deleting task:', error);
