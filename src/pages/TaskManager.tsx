@@ -70,6 +70,7 @@ const TaskManager: React.FC = () => {
   // When a user clicks the "Edit" button on a TaskCard, this function is called.
   const handleOpenEditModal = (task: Task) => {
     setEditingTask(task);
+    // Pre-fill the form with the existing task's data
     setFormState({
       title: task.title,
       description: task.description || '',
