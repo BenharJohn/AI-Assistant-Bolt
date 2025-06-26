@@ -3,19 +3,18 @@ import { CheckCircle, Circle, Clock, AlertCircle, X, ChevronDown, ChevronUp, Pen
 import { Task, useTask } from '../context/TaskContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../context/SettingsContext';
+import { format, parseISO } from 'date-fns';
 
 interface TaskCardProps {
   task: Task;
-  onEdit: (task: Task) => void; // Function passed from TaskManager to open the edit modal
+  onEdit: (task: Task) => void;
 }
 
-// A smaller component for rendering subtasks cleanly
 const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
     const { updateTask } = useTask();
 
-    // Toggling a subtask's completion status
     const handleToggle = () => {
-        const newStatus = subtask.status === 'completed' ? 'in-progress' : 'completed';
+        const newStatus = subtask.status === 'completed' ? 'pending' : 'completed';
         updateTask(subtask.id, { status: newStatus });
     };
 
@@ -35,19 +34,16 @@ const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
     );
 };
 
-
 const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
   const { updateTask, deleteTask } = useTask();
   const { reducedMotion } = useSettings();
   const [isExpanded, setIsExpanded] = React.useState(true);
 
-  // Toggling a parent task's completion status
   const handleToggle = () => {
-    const newStatus = task.status === 'completed' ? 'in-progress' : 'completed';
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
     updateTask(task.id, { status: newStatus });
   };
   
-  // Helper functions for styling
   const getPriorityClasses = (priority?: string) => {
     switch (priority) {
       case 'high': return 'border-primary bg-primary/5';
@@ -63,6 +59,14 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
       case 'medium': return <Clock className="w-4 h-4 text-secondary" />;
       case 'low': return <Circle className="w-4 h-4 text-muted-foreground" />;
       default: return null;
+    }
+  };
+
+  const formatDueDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), 'MMM d, yyyy');
+    } catch {
+      return dateString;
     }
   };
 
@@ -114,8 +118,21 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
                   <div className="flex items-center space-x-1 text-muted-foreground">
                     <Clock size={12} />
                     <span className="text-xs">
-                      Due: {new Date(task.due_date).toLocaleDateString()}
+                      Due: {formatDueDate(task.due_date)}
                     </span>
+                  </div>
+                )}
+
+                {task.tags && task.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {task.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-0.5 text-xs rounded-full bg-accent/20 text-accent-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
