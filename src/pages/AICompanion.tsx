@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles } from 'lucide-react';
+import { Send, Sparkles, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
+import VoiceAI from '../components/VoiceAI';
 
 type ConversationEntry = { type: 'user' | 'ai'; content: string };
 
@@ -10,6 +11,7 @@ const AICompanion: React.FC = () => {
   const [conversation, setConversation] = useState<Array<ConversationEntry>>([]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { reducedMotion } = useSettings();
@@ -36,7 +38,7 @@ const AICompanion: React.FC = () => {
   useEffect(scrollToBottom, [conversation]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
-    e.preventDefault();
+    e?.preventDefault();
     const userMessage = input.trim();
     if (!userMessage || isProcessing) return;
 
@@ -57,12 +59,9 @@ const AICompanion: React.FC = () => {
       const data = await response.json();
       const aiResponseContent = data.reply || "I had a problem with that request.";
 
-      // --- NEW: Check if the AI wants to navigate ---
       if (data.toolResult && data.toolResult.didNavigate) {
-        // Add the AI's confirmation message first
         const aiEntry: ConversationEntry = { type: 'ai', content: aiResponseContent };
         setConversation(prev => [...prev, aiEntry]);
-        // Then perform the navigation after a short delay
         setTimeout(() => navigate(data.toolResult.path), 1200);
       } else {
         const aiEntry: ConversationEntry = { type: 'ai', content: aiResponseContent };
@@ -113,8 +112,19 @@ const AICompanion: React.FC = () => {
                 </AnimatePresence>
                 <div ref={messagesEndRef} />
               </div>
+              
               <div className="p-4 border-t border-appBorder bg-background/80 backdrop-blur-sm">
                 <form onSubmit={handleSubmit} className="flex items-center space-x-3">
+                  {/* Voice button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowVoiceModal(true)}
+                    className="p-3 rounded-xl transition-all duration-200 bg-secondary hover:bg-secondary-hover text-secondary-foreground"
+                    aria-label="Voice input"
+                  >
+                    <Mic size={20} />
+                  </button>
+                  
                   <input
                     type="text"
                     value={input}
@@ -131,10 +141,22 @@ const AICompanion: React.FC = () => {
                     <Send size={20} />
                   </button>
                 </form>
+                
+                {/* Voice mode hint */}
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  💡 Try the voice button for natural conversation
+                </p>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Voice AI Modal */}
+        <VoiceAI 
+          isOpen={showVoiceModal} 
+          onClose={() => setShowVoiceModal(false)}
+          variant="floating"
+        />
     </div>
   );
 };

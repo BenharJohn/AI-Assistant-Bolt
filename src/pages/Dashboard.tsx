@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTask } from '../context/TaskContext';
 import TaskCard from '../components/TaskCard';
 import AIAssistant from '../components/AIAssistant';
-import AICompanionButton from '../components/AICompanionButton';
+import LiveVoiceShape from '../components/LiveVoiceShape';
 import BoltBadge from '../components/BoltBadge';
 import { useSettings } from '../context/SettingsContext';
 import { format, isToday, parseISO } from 'date-fns';
@@ -23,11 +23,9 @@ const Dashboard: React.FC = () => {
   const totalTasks = incompleteTasks.length;
 
   // Count tasks completed today (checking created_at since we don't have updated_at)
-  // For now, we'll use a simple approach - in a real app you'd want to track completion dates
   const completedTasks = allTasks.filter(task => task.status === 'completed');
   const completedToday = completedTasks.filter(task => {
     try {
-      // Check if task was created today (as a proxy for completion)
       return isToday(parseISO(task.created_at));
     } catch {
       return false;
@@ -42,10 +40,8 @@ const Dashboard: React.FC = () => {
 
   // Get priority tasks (high priority or due soon) using correct field names
   const priorityTasks = incompleteTasks.filter(task => {
-    // High priority tasks
     if (task.priority === 'high') return true;
     
-    // Tasks due soon (within 2 days)
     if (task.due_date) {
       try {
         const dueDate = parseISO(task.due_date);
@@ -107,9 +103,12 @@ const Dashboard: React.FC = () => {
           <p className="text-muted-foreground mt-2">Today is {format(today, 'EEEE, MMMM d, yyyy')}</p>
         </motion.div>
 
-        {/* AI Companion Button */}
+        {/* Live Voice AI Shape */}
         <motion.div variants={itemVariants} className="flex justify-center mb-8">
-          <AICompanionButton onActivate={() => setShowAIAssistant(true)} />
+          <div className="text-center">
+            <LiveVoiceShape />
+            <p className="text-xs text-muted-foreground mt-2">Your live AI companion</p>
+          </div>
         </motion.div>
 
         {/* Stats Section */}
