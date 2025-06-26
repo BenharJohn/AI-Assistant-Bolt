@@ -11,4 +11,4 @@ export default defineConfig(({ command }) => ({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
-}));
+})); 
