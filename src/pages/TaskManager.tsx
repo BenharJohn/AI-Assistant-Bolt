@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Pencil } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useTask, Task } from '../context/TaskContext';
 import TaskCard from '../components/TaskCard';
@@ -59,6 +59,7 @@ const TaskManager: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
+  // Use a single state to manage form inputs for both Add and Edit
   const [formState, setFormState] = useState({
     title: '',
     description: '',
