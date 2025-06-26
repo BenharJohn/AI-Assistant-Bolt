@@ -215,9 +215,10 @@ export default async (req, context) => {
   }
 
   try {
-    const { audioData, mode = 'assistant', history } = await req.json();
+    // STEP 1: Get the audio data from the request
+    const audio_base64 = await req.text();
     
-    if (!audioData) {
+    if (!audio_base64) {
       return new Response(JSON.stringify({ error: 'No audio data provided' }), { status: 400 });
     }
 
@@ -232,10 +233,13 @@ export default async (req, context) => {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Use the native audio dialog model for enhanced voice interactions
+    // STEP 2: Use Gemini for Speech-to-Text AND AI Logic in one call
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash-preview-native-audio-dialog",
-      tools: voiceAssistantTools,
+      model: "gemini-1.5-flash-latest", 
+      tools: voiceAssistantTools 
+    });
+
+    const chat = model.startChat({
       systemInstruction: `You are FocusAssist, a warm, intelligent voice AI companion designed to help people with ADHD, dyslexia, and focus challenges succeed in their daily lives.
 
 VOICE INTERACTION GUIDELINES:
@@ -268,34 +272,26 @@ PERSONALITY FOR VOICE:
 Remember: This is a voice conversation, so be natural, immediate, and conversational. Don't over-explain - just be helpful and warm.`
     });
 
-    // Start a chat session with the audio using the native audio dialog capabilities
-    const chat = model.startChat({
-      history: history || [],
-      // Enable native audio processing
-      generationConfig: {
-        candidateCount: 1,
-        temperature: 0.7,
-        topP: 0.8,
-        topK: 40
-      }
-    });
-
-    // Send the audio message using the enhanced native audio dialog format
+    // Send audio data for transcription and initial response
     const result = await chat.sendMessage([
-      {
-        inlineData: {
-          mimeType: "audio/wav",
-          data: audioData
-        }
+      "Transcribe this audio and then follow the user's command.",
+      { 
+        inlineData: { 
+          mimeType: "audio/webm", 
+          data: audio_base64 
+        } 
       }
     ]);
 
     const response = result.response;
     const functionCalls = response.functionCalls();
 
+    // STEP 3: Handle any tool calls and get final text response
+    let finalResponseText;
+    let toolResult = null;
+
     if (functionCalls && functionCalls.length > 0) {
       const call = functionCalls[0];
-      let toolResult;
 
       if (call.name === 'navigateTo') {
         toolResult = { success: true, path: call.args.path, didNavigate: true };
@@ -329,7 +325,7 @@ Remember: This is a voice conversation, so be natural, immediate, and conversati
         toolResult = { success: false, error: "I'm not sure how to help with that right now." };
       }
 
-      // Send the tool result back to get the final voice response
+      // Get the final response after executing the tool
       const result2 = await chat.sendMessage([{ 
         functionResponse: { 
           name: call.name, 
@@ -337,34 +333,21 @@ Remember: This is a voice conversation, so be natural, immediate, and conversati
         } 
       }]);
 
-      const finalResponse = result2.response;
-      
-      // Extract native audio response (the model should provide this directly)
-      const audioResponse = finalResponse.audio || null;
-      const textResponse = finalResponse.text();
-
-      return new Response(JSON.stringify({ 
-        audioResponse: audioResponse,
-        textResponse: textResponse,
-        toolResult: toolResult 
-      }), { 
-        status: 200, 
-        headers: { 'Content-Type': 'application/json' } 
-      });
-
+      finalResponseText = result2.response.text();
     } else {
-      // Direct native audio response without tools
-      const audioResponse = response.audio || null;
-      const textResponse = response.text();
-      
-      return new Response(JSON.stringify({ 
-        audioResponse: audioResponse,
-        textResponse: textResponse
-      }), { 
-        status: 200, 
-        headers: { 'Content-Type': 'application/json' } 
-      });
+      // No tools needed, use direct response
+      finalResponseText = response.text();
     }
+
+    // STEP 4: Return the TEXT to be spoken
+    // The frontend will send this to the text-to-speech API
+    return new Response(JSON.stringify({ 
+      reply: finalResponseText, 
+      toolResult: toolResult 
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
     console.error("Error in voice assistant:", error);
