@@ -48,7 +48,6 @@ const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
   }
 };
 
-// The context provides state and database functions to the app
 const TaskContext = createContext<{
   state: TaskState;
   addTask: (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => Promise<void>;
@@ -98,31 +97,27 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // This effect runs once to set up the data flow
   useEffect(() => {
-    // 1. Fetch initial data when the app loads
+    // Fetch initial data when the app loads
     fetchAndSetTasks();
 
-    // 2. Set up the Supabase real-time subscription
+    // Set up the Supabase real-time subscription
     const channel = supabase.channel('realtime tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, 
       (payload) => {
           console.log('Realtime change received! Refetching tasks.', payload);
-          // 3. When any change happens in the DB, refetch all tasks.
-          // This guarantees the UI is always in sync, whether the change
-          // was made by the AI or the user manually.
+          // When any change happens (including from the AI), refetch all tasks.
           fetchAndSetTasks();
       })
       .subscribe();
 
-    // 4. Clean up the subscription when the app closes
+    // Clean up the subscription when the app closes
     return () => {
       supabase.removeChannel(channel);
     };
   }, [fetchAndSetTasks]);
 
-  // These are the functions that our components will call to change the data.
-  // They just talk to the database. The realtime listener above handles updating the UI.
+  // These functions now ONLY talk to the database. The realtime listener handles updating the UI.
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
     const { error } = await supabase.from('tasks').insert([task]);
     if (error) console.error('Error adding task:', error);
@@ -134,7 +129,6 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteTask = async (id: number) => {
-    // Important: First delete all children, then delete the parent
     await supabase.from('tasks').delete().eq('parent_task_id', id);
     const { error } = await supabase.from('tasks').delete().eq('id', id);
     if (error) console.error('Error deleting task:', error);
