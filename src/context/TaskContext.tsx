@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
-// This interface defines the shape of a Task, matching your database
-// and including an optional array for subtasks.
+// This Task interface is correct and includes everything we need.
 export interface Task {
   id: number;
   created_at: string;
@@ -22,7 +21,6 @@ interface TaskState {
   error: string | null;
 }
 
-// Actions to update the state
 type TaskAction =
   | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -60,7 +58,6 @@ export const useTask = () => {
   return context;
 };
 
-// This helper function turns a flat list of tasks into a parent/child hierarchy
 const buildHierarchy = (tasks: Task[]): Task[] => {
     const taskMap = new Map(tasks.map(task => [task.id, { ...task, subtasks: [] as Task[] }]));
     const hierarchicalTasks: Task[] = [];
@@ -79,7 +76,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
   const fetchAndSetTasks = useCallback(async () => {
-    dispatch({ type: 'SET_LOADING', payload: true });
+    // We don't set loading to true here because the realtime listener can call this frequently.
+    // We only want to show the main loading indicator on the initial load.
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
@@ -96,12 +94,15 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
+    // Set loading to true only on the very first load.
+    dispatch({ type: 'SET_LOADING', payload: true });
     fetchAndSetTasks();
 
     const channel = supabase.channel('realtime tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, 
       (payload) => {
           console.log('Realtime change received! Refetching tasks.', payload);
+          // When a change is detected by the realtime listener (e.g., from the AI), refetch.
           fetchAndSetTasks();
       })
       .subscribe();
@@ -111,25 +112,37 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [fetchAndSetTasks]);
 
+  // --- vvv THIS IS THE FIX vvv ---
+  // These functions now manually call fetchAndSetTasks after a successful
+  // database operation to guarantee the UI updates instantly for manual actions.
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
     const { error } = await supabase.from('tasks').insert([task]);
     if (error) {
-        console.error('Error adding task:', error);
-    } 
-    // The realtime listener will handle the UI update for AI-added tasks.
-    // For manual adds, the form submission handler will now directly call fetchAndSetTasks.
+      console.error('Error adding task:', error);
+    } else {
+      await fetchAndSetTasks(); // Manually refresh the UI
+    }
   };
 
   const updateTask = async (id: number, updates: Partial<Task>) => {
     const { error } = await supabase.from('tasks').update(updates).eq('id', id);
-    if (error) console.error('Error updating task:', error);
+    if (error) {
+      console.error('Error updating task:', error);
+    } else {
+       await fetchAndSetTasks(); // Manually refresh the UI
+    }
   };
 
   const deleteTask = async (id: number) => {
     await supabase.from('tasks').delete().eq('parent_task_id', id);
     const { error } = await supabase.from('tasks').delete().eq('id', id);
-    if (error) console.error('Error deleting task:', error);
+    if (error) {
+      console.error('Error deleting task:', error);
+    } else {
+       await fetchAndSetTasks(); // Manually refresh the UI
+    }
   };
+  // --- ^^^ END OF FIX ^^^ ---
 
   return (
     <TaskContext.Provider value={{ state, addTask, updateTask, deleteTask }}>
