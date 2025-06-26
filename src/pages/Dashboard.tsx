@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react'; // Added CheckCircle and Clock for icons
+import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react';
 import { useTask } from '../context/TaskContext';
-import TaskCard from '../components/TaskCard'; // Assuming TaskCard is in ui subfolder
-import AIAssistant from '../components/AIAssistant'; // Assuming AIAssistant is in ui subfolder
-import AICompanionButton from '../components/AICompanionButton'; // Assuming AICompanionButton is in ui subfolder
+import TaskCard from '../components/TaskCard';
+import AIAssistant from '../components/AIAssistant';
+import AICompanionButton from '../components/AICompanionButton';
+import BoltBadge from '../components/BoltBadge';
 import { useSettings } from '../context/SettingsContext';
 import { format } from 'date-fns';
 
@@ -59,38 +60,38 @@ const Dashboard: React.FC = () => {
     return 'Good evening';
   };
 
-  // Define icon colors based on the theme for better consistency
-  const iconPrimaryColor = "text-primary"; // Uses Muted Terracotta from your theme
-  const iconSecondaryColor = "text-secondary"; // Uses Gentle Apricot from your theme
-  const iconAccentColor = "text-accent"; // Uses Gentle Apricot (or distinct accent if defined) from your theme
-
+  const iconPrimaryColor = "text-primary";
+  const iconSecondaryColor = "text-secondary";
+  const iconAccentColor = "text-accent";
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground"> {/* Default text for the page */}
+    <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground relative">
+      {/* Bolt.new Badge - positioned absolutely in top right */}
+      <div className="absolute top-4 right-4 z-10">
+        <BoltBadge variant="black" />
+      </div>
+
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <motion.div variants={itemVariants} className="mb-8">
-          {/* Greeting text uses foreground color by default now, which should be dark enough. */}
-          {/* Explicitly setting it for clarity. */}
+        <motion.div variants={itemVariants} className="mb-8 pt-12 lg:pt-0">
           <h1 className="text-3xl font-bold text-foreground">{greetingMessage()}!</h1>
           <p className="text-muted-foreground mt-2">Today is {format(today, 'EEEE, MMMM d, yyyy')}</p>
         </motion.div>
 
         {/* AI Companion Button */}
         <motion.div variants={itemVariants} className="flex justify-center mb-8">
-          {/* AICompanionButton should internally use themed styles */}
           <AICompanionButton onActivate={() => setShowAIAssistant(true)} />
         </motion.div>
 
         {/* Stats Section */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"> {/* Increased gap slightly */}
+        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Card 1: Tasks Today */}
           <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
             <div className="flex items-center mb-4">
-              <div className="rounded-full bg-primary/10 p-3 mr-4"> {/* Light tint of primary */}
+              <div className="rounded-full bg-primary/10 p-3 mr-4">
                 <Briefcase className={`h-6 w-6 ${iconPrimaryColor}`} />
               </div>
               <div>
@@ -103,7 +104,7 @@ const Dashboard: React.FC = () => {
                 <span>Completion Rate</span>
                 <span>{completionRate}%</span>
               </div>
-              <div className="w-full bg-muted rounded-full h-2.5"> {/* Slightly thicker bar */}
+              <div className="w-full bg-muted rounded-full h-2.5">
                 <div
                   className="bg-primary h-2.5 rounded-full"
                   style={{ width: `${completionRate}%` }}
@@ -115,8 +116,8 @@ const Dashboard: React.FC = () => {
           {/* Card 2: Completed */}
           <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
             <div className="flex items-center mb-4">
-              <div className="rounded-full bg-secondary/10 p-3 mr-4"> {/* Light tint of secondary */}
-                <CheckCircle className={`h-6 w-6 ${iconSecondaryColor}`} /> {/* Changed icon */}
+              <div className="rounded-full bg-secondary/10 p-3 mr-4">
+                <CheckCircle className={`h-6 w-6 ${iconSecondaryColor}`} />
               </div>
               <div>
                 <h3 className="text-lg font-medium text-card-foreground">Completed</h3>
@@ -133,16 +134,15 @@ const Dashboard: React.FC = () => {
           {/* Card 3: Focus Time */}
           <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
             <div className="flex items-center mb-4">
-              <div className="rounded-full bg-accent/10 p-3 mr-4"> {/* Light tint of accent */}
-                <Clock className={`h-6 w-6 ${iconAccentColor}`} /> {/* Changed icon */}
+              <div className="rounded-full bg-accent/10 p-3 mr-4">
+                <Clock className={`h-6 w-6 ${iconAccentColor}`} />
               </div>
               <div>
                 <h3 className="text-lg font-medium text-card-foreground">Focus Time</h3>
                 <p className="text-2xl font-bold text-card-foreground">25:00</p>
               </div>
             </div>
-            {/* Use one of the button styles from index.css or Tailwind theme */}
-            <button className="w-full mt-2 btn-primary"> {/* Applied .btn-primary */}
+            <button className="w-full mt-2 btn-primary">
               Start Focus Session
             </button>
           </div>
@@ -159,15 +159,14 @@ const Dashboard: React.FC = () => {
           </div>
 
           {priorityTasks.length > 0 ? (
-            <div className="space-y-4"> {/* Added space between task cards */}
+            <div className="space-y-4">
               {priorityTasks.map(task => (
-                // TaskCard should internally use themed styles (bg-card, text-card-foreground etc.)
                 <TaskCard key={task.id} task={task} />
               ))}
             </div>
           ) : (
             <div className="bg-muted border-appBorder rounded-2xl p-6 text-center">
-              <Brain size={32} className="mx-auto text-muted-foreground mb-3" /> {/* Added an icon */}
+              <Brain size={32} className="mx-auto text-muted-foreground mb-3" />
               <p className="text-muted-foreground">No priority tasks right now. Great job!</p>
             </div>
           )}
@@ -188,11 +187,11 @@ const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Increased gap */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Learning Card 1 */}
             <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
               <div className="flex items-center mb-3">
-                <div className="rounded-full bg-secondary/10 p-2 mr-3"> {/* Light tint of secondary */}
+                <div className="rounded-full bg-secondary/10 p-2 mr-3">
                   <Brain size={20} className={`${iconSecondaryColor}`} />
                 </div>
                 <h3 className="font-medium text-card-foreground">Understanding ADHD</h3>
@@ -208,7 +207,7 @@ const Dashboard: React.FC = () => {
             {/* Learning Card 2 */}
             <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
               <div className="flex items-center mb-3">
-                <div className="rounded-full bg-accent/10 p-2 mr-3"> {/* Light tint of accent */}
+                <div className="rounded-full bg-accent/10 p-2 mr-3">
                   <Book size={20} className={`${iconAccentColor}`} />
                 </div>
                 <h3 className="font-medium text-card-foreground">Reading Strategies</h3>
@@ -216,7 +215,7 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-muted-foreground mb-3">
                 Effective techniques for improving reading comprehension, focus, and retention.
               </p>
-              <button className={`text-accent hover:text-accent-hover text-sm font-medium`}> {/* Assuming accent-hover is defined or use secondary-hover */}
+              <button className={`text-accent hover:text-accent-hover text-sm font-medium`}>
                 Explore →
               </button>
             </div>
@@ -224,7 +223,7 @@ const Dashboard: React.FC = () => {
         </motion.div>
       </motion.div>
 
-      {showAIAssistant && <AIAssistant onClose={() => setShowAIAssistant(false)} />} {/* Assuming AIAssistant has an onClose prop */}
+      {showAIAssistant && <AIAssistant onClose={() => setShowAIAssistant(false)} />}
     </div>
   );
 };
