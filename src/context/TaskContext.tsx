@@ -34,7 +34,6 @@ const initialState: TaskState = {
   error: null,
 };
 
-// The reducer simply updates the state based on actions
 const taskReducer = (state: TaskState, action: TaskAction): TaskState => {
   switch (action.type) {
     case 'SET_TASKS':
@@ -79,7 +78,6 @@ const buildHierarchy = (tasks: Task[]): Task[] => {
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
-  // A memoized function to fetch and process all tasks from the database
   const fetchAndSetTasks = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     const { data, error } = await supabase
@@ -98,29 +96,28 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    // Fetch initial data when the app loads
     fetchAndSetTasks();
 
-    // Set up the Supabase real-time subscription
     const channel = supabase.channel('realtime tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, 
       (payload) => {
           console.log('Realtime change received! Refetching tasks.', payload);
-          // When any change happens (including from the AI), refetch all tasks.
           fetchAndSetTasks();
       })
       .subscribe();
 
-    // Clean up the subscription when the app closes
     return () => {
       supabase.removeChannel(channel);
     };
   }, [fetchAndSetTasks]);
 
-  // These functions now ONLY talk to the database. The realtime listener handles updating the UI.
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
     const { error } = await supabase.from('tasks').insert([task]);
-    if (error) console.error('Error adding task:', error);
+    if (error) {
+        console.error('Error adding task:', error);
+    } 
+    // The realtime listener will handle the UI update for AI-added tasks.
+    // For manual adds, the form submission handler will now directly call fetchAndSetTasks.
   };
 
   const updateTask = async (id: number, updates: Partial<Task>) => {
