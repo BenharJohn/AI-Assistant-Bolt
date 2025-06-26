@@ -58,6 +58,7 @@ const TaskManager: React.FC = () => {
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Use a single state to manage form inputs for both Add and Edit
   const [formState, setFormState] = useState({
@@ -81,23 +82,48 @@ const TaskManager: React.FC = () => {
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formState.title.trim()) return;
-    // Call the addTask function from our context
-    await addTask({ ...formState, status: 'pending' });
-    setShowAddForm(false);
+    if (!formState.title.trim() || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      console.log('Adding task with data:', { ...formState, status: 'pending' });
+      await addTask({ 
+        title: formState.title.trim(),
+        description: formState.description.trim() || null,
+        priority: formState.priority,
+        due_date: formState.due_date || null,
+        status: 'pending'
+      });
+      
+      // Reset form and close modal
+      setFormState({ title: '', description: '', priority: 'medium', due_date: '' });
+      setShowAddForm(false);
+      console.log('Task added successfully');
+    } catch (error) {
+      console.error('Error adding task:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleUpdateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTask) return;
-    // Call the updateTask function from our context
-    await updateTask(editingTask.id, {
-      title: formState.title,
-      description: formState.description,
-      priority: formState.priority,
-      due_date: formState.due_date,
-    });
-    setEditingTask(null);
+    if (!editingTask || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      await updateTask(editingTask.id, {
+        title: formState.title.trim(),
+        description: formState.description.trim() || null,
+        priority: formState.priority,
+        due_date: formState.due_date || null,
+      });
+      setEditingTask(null);
+    } catch (error) {
+      console.error('Error updating task:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
@@ -112,9 +138,16 @@ const TaskManager: React.FC = () => {
               <h1 className="text-2xl font-bold text-foreground">Task Manager</h1>
               <p className="text-muted-foreground mt-2">Manage your projects and track progress with your AI assistant.</p>
             </div>
-            <button onClick={() => { setFormState({ title: '', description: '', priority: 'medium', due_date: '' }); setShowAddForm(true); }} className="btn-primary flex items-center space-x-2">
+            <button 
+              onClick={() => { 
+                setFormState({ title: '', description: '', priority: 'medium', due_date: '' }); 
+                setShowAddForm(true); 
+              }} 
+              className="btn-primary flex items-center space-x-2"
+              disabled={isSubmitting}
+            >
               <Plus size={16} />
-              <span>Add Task</span>
+              <span>{isSubmitting ? 'Adding...' : 'Add Task'}</span>
             </button>
           </div>
         </motion.div>
@@ -122,26 +155,92 @@ const TaskManager: React.FC = () => {
         <AnimatePresence>
           {showAddForm && (
             <FormModal title="Add New Task" onClose={() => setShowAddForm(false)} onSave={handleAddTask}>
-              <label className="block text-sm font-medium text-card-foreground mb-1">Title</label>
-              <input type="text" value={formState.title} onChange={(e) => setFormState({...formState, title: e.target.value})} placeholder="Enter task title..." required className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground" />
+              <label className="block text-sm font-medium text-card-foreground mb-1">Title *</label>
+              <input 
+                type="text" 
+                value={formState.title} 
+                onChange={(e) => setFormState({...formState, title: e.target.value})} 
+                placeholder="Enter task title..." 
+                required 
+                disabled={isSubmitting}
+                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+              />
+              
               <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Description</label>
-              <textarea value={formState.description} onChange={(e) => setFormState({...formState, description: e.target.value})} placeholder="Description..." rows={3} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none" />
+              <textarea 
+                value={formState.description} 
+                onChange={(e) => setFormState({...formState, description: e.target.value})} 
+                placeholder="Description..." 
+                rows={3} 
+                disabled={isSubmitting}
+                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none disabled:opacity-50" 
+              />
+              
               <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Priority</label>
-              <select value={formState.priority} onChange={(e) => setFormState({...formState, priority: e.target.value as any})} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground">
-                <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+              <select 
+                value={formState.priority} 
+                onChange={(e) => setFormState({...formState, priority: e.target.value as any})} 
+                disabled={isSubmitting}
+                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
               </select>
+              
+              <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Due Date</label>
+              <input 
+                type="date" 
+                value={formState.due_date} 
+                onChange={(e) => setFormState({...formState, due_date: e.target.value})} 
+                disabled={isSubmitting}
+                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+              />
             </FormModal>
           )}
           {editingTask && (
              <FormModal title="Edit Task" onClose={() => setEditingTask(null)} onSave={handleUpdateTask}>
-                <label className="block text-sm font-medium text-card-foreground mb-1">Title</label>
-                <input type="text" value={formState.title} onChange={(e) => setFormState({...formState, title: e.target.value})} placeholder="Task title..." required className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground" />
+                <label className="block text-sm font-medium text-card-foreground mb-1">Title *</label>
+                <input 
+                  type="text" 
+                  value={formState.title} 
+                  onChange={(e) => setFormState({...formState, title: e.target.value})} 
+                  placeholder="Task title..." 
+                  required 
+                  disabled={isSubmitting}
+                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+                />
+                
                 <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Description</label>
-                <textarea value={formState.description} onChange={(e) => setFormState({...formState, description: e.target.value})} placeholder="Description..." rows={3} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none" />
+                <textarea 
+                  value={formState.description} 
+                  onChange={(e) => setFormState({...formState, description: e.target.value})} 
+                  placeholder="Description..." 
+                  rows={3} 
+                  disabled={isSubmitting}
+                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none disabled:opacity-50" 
+                />
+                
                 <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Priority</label>
-                <select value={formState.priority} onChange={(e) => setFormState({...formState, priority: e.target.value as any})} className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground">
-                  <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+                <select 
+                  value={formState.priority} 
+                  onChange={(e) => setFormState({...formState, priority: e.target.value as any})} 
+                  disabled={isSubmitting}
+                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
                 </select>
+                
+                <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Due Date</label>
+                <input 
+                  type="date" 
+                  value={formState.due_date} 
+                  onChange={(e) => setFormState({...formState, due_date: e.target.value})} 
+                  disabled={isSubmitting}
+                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+                />
             </FormModal>
           )}
         </AnimatePresence>
@@ -149,6 +248,11 @@ const TaskManager: React.FC = () => {
         <motion.div variants={itemVariants} className="space-y-6 mt-8">
           {taskState.loading ? (
             <p className="text-muted-foreground text-center animate-pulse">Loading tasks...</p>
+          ) : taskState.error ? (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 text-center">
+              <p className="text-red-600 dark:text-red-400 font-medium">Error loading tasks</p>
+              <p className="text-red-500 dark:text-red-300 text-sm mt-1">{taskState.error}</p>
+            </div>
           ) : taskState.tasks.length > 0 ? (
             taskState.tasks.map(task => (
               <TaskCard key={task.id} task={task} onEdit={handleOpenEditModal} />
