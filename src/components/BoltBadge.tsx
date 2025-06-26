@@ -33,17 +33,23 @@ const BoltBadge: React.FC<BoltBadgeProps> = ({ variant = 'black', className = ''
       className="w-full h-full"
     >
       <circle cx="20" cy="20" r="20" fill="#000000"/>
-      <path
-        d="M12 14.5c0-1.38 1.12-2.5 2.5-2.5h11c1.38 0 2.5 1.12 2.5 2.5v11c0 1.38-1.12 2.5-2.5 2.5h-11c-1.38 0-2.5-1.12-2.5-2.5v-11z"
+      <g transform="translate(12, 12)">
+        <path
+          d="M9 2L7 8h5l-2 6 6-8h-5l2-6z"
+          fill="#FFFFFF"
+          strokeLinejoin="round"
+        />
+      </g>
+      {/* "bolt" text */}
+      <text
+        x="20"
+        y="32"
+        textAnchor="middle"
+        className="text-[6px] font-bold"
         fill="#FFFFFF"
-      />
-      <path
-        d="M16.5 18l3 3 7-7"
-        stroke="#000000"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      >
+        bolt
+      </text>
     </svg>
   );
 
@@ -58,17 +64,23 @@ const BoltBadge: React.FC<BoltBadgeProps> = ({ variant = 'black', className = ''
       className="w-full h-full"
     >
       <circle cx="20" cy="20" r="20" fill="#FFFFFF"/>
-      <path
-        d="M12 14.5c0-1.38 1.12-2.5 2.5-2.5h11c1.38 0 2.5 1.12 2.5 2.5v11c0 1.38-1.12 2.5-2.5 2.5h-11c-1.38 0-2.5-1.12-2.5-2.5v-11z"
+      <g transform="translate(12, 12)">
+        <path
+          d="M9 2L7 8h5l-2 6 6-8h-5l2-6z"
+          fill="#000000"
+          strokeLinejoin="round"
+        />
+      </g>
+      {/* "bolt" text */}
+      <text
+        x="20"
+        y="32"
+        textAnchor="middle"
+        className="text-[6px] font-bold"
         fill="#000000"
-      />
-      <path
-        d="M16.5 18l3 3 7-7"
-        stroke="#FFFFFF"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      >
+        bolt
+      </text>
     </svg>
   );
 
@@ -82,7 +94,7 @@ const BoltBadge: React.FC<BoltBadgeProps> = ({ variant = 'black', className = ''
       {variant === 'white' ? <WhiteCircleBadge /> : <BlackCircleBadge />}
       
       {/* Hover tooltip */}
-      <div className="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+      <div className="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
         Built with Bolt.new
       </div>
     </button>
