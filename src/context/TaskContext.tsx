@@ -81,14 +81,57 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
-      .order('status', { ascending: true }) 
+      .order('status', { 
+        ascending: true,
+        // Custom ordering: completed tasks last, others first
+        foreignTable: undefined,
+        referencedTable: undefined
+      })
+      .order('priority', { 
+        ascending: false,
+        // Custom ordering: high > medium > low  
+        foreignTable: undefined,
+        referencedTable: undefined
+      })
+      .order('due_date', { 
+        ascending: true,
+        nullsFirst: false,
+        foreignTable: undefined,
+        referencedTable: undefined
+      })
       .order('created_at', { ascending: true });
 
     if (error) {
       console.error('Error fetching tasks:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
     } else {
-      const hierarchicalTasks = buildHierarchy(data || []);
+      // Apply additional custom sorting to ensure the exact order we want
+      const sortedData = (data || []).sort((a, b) => {
+        // 1. First sort by completion status (incomplete tasks first)
+        if (a.status === 'completed' && b.status !== 'completed') return 1;
+        if (a.status !== 'completed' && b.status === 'completed') return -1;
+        
+        // 2. For tasks with the same completion status, sort by priority
+        const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+        const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+        const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+        
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority; // Higher priority first
+        }
+        
+        // 3. For tasks with same status and priority, sort by due date (sooner first)
+        if (a.due_date && b.due_date) {
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        }
+        if (a.due_date && !b.due_date) return -1; // Tasks with due dates come first
+        if (!a.due_date && b.due_date) return 1;
+        
+        // 4. Finally, sort by creation date (newer first for better UX)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      const hierarchicalTasks = buildHierarchy(sortedData);
       dispatch({ type: 'SET_TASKS', payload: hierarchicalTasks });
     }
   }, []);
