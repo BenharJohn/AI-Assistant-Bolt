@@ -79,7 +79,7 @@ const voiceAssistantTools = [
   }
 ];
 
-// Helper functions (same as text version but with voice-optimized responses)
+// Helper functions (optimized for voice responses)
 async function handleCreateProject(args, supabase, genAI) {
   try {
     const { title, due_date } = args;
@@ -178,7 +178,7 @@ async function handleGetTodaysTasks(supabase) {
       };
     }
 
-    const taskList = tasks.map(task => {
+    const taskList = tasks.slice(0, 5).map(task => {
       let taskInfo = `${task.title} - ${task.priority} priority`;
       if (task.due_date) {
         const dueDate = new Date(task.due_date);
@@ -197,9 +197,11 @@ async function handleGetTodaysTasks(supabase) {
       return taskInfo;
     }).join('. ');
 
+    const remainingCount = tasks.length > 5 ? ` Plus ${tasks.length - 5} more tasks.` : '';
+
     return { 
       success: true, 
-      result: `Here's what you're working with: ${taskList}. Total: ${tasks.length} tasks remaining. Would you like help with any of these?` 
+      result: `Here's what you're working with: ${taskList}.${remainingCount} Total: ${tasks.length} tasks remaining. Would you like help with any of these?` 
     };
 
   } catch (error) {
@@ -230,45 +232,55 @@ export default async (req, context) => {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Use the native audio dialog model
+    // Use the native audio dialog model for enhanced voice interactions
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.5-flash-preview-native-audio-dialog",
       tools: voiceAssistantTools,
-      systemInstruction: `You are FocusAssist, a warm, intelligent voice AI companion designed to help people with ADHD, dyslexia, and focus challenges.
+      systemInstruction: `You are FocusAssist, a warm, intelligent voice AI companion designed to help people with ADHD, dyslexia, and focus challenges succeed in their daily lives.
 
 VOICE INTERACTION GUIDELINES:
-- Speak naturally and conversationally
-- Keep responses concise but warm
-- Use natural speech patterns, not formal text
-- Be encouraging and supportive
+- Speak naturally and conversationally, as if you're a helpful friend
+- Keep responses concise but warm (aim for 15-30 seconds of speech)
+- Use natural speech patterns with appropriate pauses and intonation
+- Be encouraging and supportive in your tone
+- Respond immediately and naturally - don't ask for confirmation unless absolutely necessary
 
 CRITICAL NAVIGATION - Use tools immediately for:
-- "show me my journal" → /journal
-- "I want to focus" → /focus  
-- "help me learn" → /learning
-- "show my tasks" → /tasks
+- "show me my journal" or "I want to journal" → /journal
+- "I want to focus" or "focus mode" → /focus  
+- "help me learn" or "explain something" → /learning
+- "show my tasks" or "task manager" → /tasks
 
-TOOL USAGE:
+TOOL USAGE INTELLIGENCE:
 - Use tools proactively when you recognize needs
-- For complex projects, use createProjectWithSubtasks
-- For simple tasks, use addTask
-- Always use navigateTo for navigation requests
+- For complex projects (essays, vacation planning, organizing), use createProjectWithSubtasks
+- For simple tasks (calls, errands, appointments), use addTask
+- ALWAYS use navigateTo immediately for navigation requests - don't ask for clarification
 
-PERSONALITY:
+PERSONALITY FOR VOICE:
 - Warm, encouraging, genuinely helpful
-- Celebrate wins, offer gentle guidance
-- Natural, conversational tone
-- Today's date: ${new Date().toLocaleDateString('en-CA')}`
+- Celebrate wins with enthusiasm: "That's fantastic!" "You're doing great!"
+- Offer gentle guidance for challenges: "Let's break this down together"
+- Use natural conversational fillers: "So...", "Alright...", "Perfect..."
+- Match their energy level but stay positive
+- Today's date: ${new Date().toLocaleDateString('en-CA')}
+
+Remember: This is a voice conversation, so be natural, immediate, and conversational. Don't over-explain - just be helpful and warm.`
     });
 
-    // Start a chat session with the audio
+    // Start a chat session with the audio using the native audio dialog capabilities
     const chat = model.startChat({
-      history: history || []
+      history: history || [],
+      // Enable native audio processing
+      generationConfig: {
+        candidateCount: 1,
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40
+      }
     });
 
-    // Convert base64 audio data to the format Gemini expects
-    const audioBuffer = Buffer.from(audioData, 'base64');
-    
+    // Send the audio message using the enhanced native audio dialog format
     const result = await chat.sendMessage([
       {
         inlineData: {
@@ -298,7 +310,7 @@ PERSONALITY:
         }]);
         toolResult = error ? 
           { success: false, error: error.message } : 
-          { success: true, result: `Added "${call.args.title}" to your tasks.` };
+          { success: true, result: `Added "${call.args.title}" to your tasks. You're all set!` };
       } else if (call.name === 'createProjectWithSubtasks') {
         toolResult = await handleCreateProject(call.args, supabase, genAI);
       } else if (call.name === 'getTodaysTasks') {
@@ -306,17 +318,18 @@ PERSONALITY:
       } else if (call.name === 'updateTask') {
         const { data } = await supabase.from('tasks').update(call.args.updates).eq('title', call.args.title).select().single();
         toolResult = data ? 
-          { success: true, result: "Updated that task for you!" } : 
-          { success: false, error: "Couldn't find that task." };
+          { success: true, result: "Perfect! I've updated that task for you." } : 
+          { success: false, error: "I couldn't find that specific task to update." };
       } else if (call.name === 'deleteTask') {
         const { error } = await supabase.from('tasks').delete().eq('title', call.args.title);
         toolResult = error ? 
-          { success: false, error: "Couldn't remove that task." } : 
-          { success: true, result: "Removed that task from your list!" };
+          { success: false, error: "I couldn't find that task to remove." } : 
+          { success: true, result: "Done! I've removed that task from your list." };
       } else {
-        toolResult = { success: false, error: "Not sure how to help with that." };
+        toolResult = { success: false, error: "I'm not sure how to help with that right now." };
       }
 
+      // Send the tool result back to get the final voice response
       const result2 = await chat.sendMessage([{ 
         functionResponse: { 
           name: call.name, 
@@ -324,13 +337,15 @@ PERSONALITY:
         } 
       }]);
 
-      // Get the audio response
       const finalResponse = result2.response;
-      const audioResponse = finalResponse.audio; // This should contain the audio data
+      
+      // Extract native audio response (the model should provide this directly)
+      const audioResponse = finalResponse.audio || null;
+      const textResponse = finalResponse.text();
 
       return new Response(JSON.stringify({ 
         audioResponse: audioResponse,
-        textResponse: finalResponse.text(),
+        textResponse: textResponse,
         toolResult: toolResult 
       }), { 
         status: 200, 
@@ -338,8 +353,8 @@ PERSONALITY:
       });
 
     } else {
-      // Direct audio response without tools
-      const audioResponse = response.audio;
+      // Direct native audio response without tools
+      const audioResponse = response.audio || null;
       const textResponse = response.text();
       
       return new Response(JSON.stringify({ 
@@ -354,7 +369,7 @@ PERSONALITY:
   } catch (error) {
     console.error("Error in voice assistant:", error);
     return new Response(JSON.stringify({ 
-      error: 'I had trouble processing that. Could you try again?' 
+      error: 'I had trouble processing that. Could you try speaking again?' 
     }), { status: 500 });
   }
 };
