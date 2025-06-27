@@ -44,7 +44,7 @@ const BoltBadge: React.FC<BoltBadgeProps> = ({
       {/* Use the downloaded image */}
       {variant === 'black' ? (
         <img 
-          src="/black_circle_360x360.png" 
+          src="public/black_circle_360x360.png" 
           alt="Built with Bolt.new" 
           className="w-full h-full object-contain"
           loading="lazy"
