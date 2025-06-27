@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface VoiceAIResponse {
   reply?: string;
@@ -23,6 +23,7 @@ interface VoiceAIState {
 
 export const useVoiceAI = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [state, setState] = useState<VoiceAIState>({
     isListening: false,
     isProcessing: false,
@@ -34,7 +35,10 @@ export const useVoiceAI = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const silenceTimerRef = useRef<number | null>(null);
+  const vadIntervalRef = useRef<number | null>(null);
 
   const updateState = useCallback((updates: Partial<VoiceAIState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -58,6 +62,61 @@ export const useVoiceAI = () => {
     }
   }, [updateState]);
 
+  // Voice Activity Detection setup
+  const setupVAD = useCallback((stream: MediaStream) => {
+    if (!audioContextRef.current) return;
+
+    const source = audioContextRef.current.createMediaStreamSource(stream);
+    const analyser = audioContextRef.current.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.8;
+    
+    source.connect(analyser);
+    analyserRef.current = analyser;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    let silenceStart = 0;
+    const SILENCE_THRESHOLD = 30; // Adjust based on testing
+    const SILENCE_DURATION = 1500; // 1.5 seconds of silence before stopping
+
+    const checkAudioLevel = () => {
+      if (!analyserRef.current) return;
+      
+      analyser.getByteFrequencyData(dataArray);
+      
+      // Calculate average volume
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+      
+      if (average < SILENCE_THRESHOLD) {
+        if (silenceStart === 0) {
+          silenceStart = Date.now();
+        } else if (Date.now() - silenceStart > SILENCE_DURATION) {
+          // Stop recording due to silence
+          stopListening();
+          return;
+        }
+      } else {
+        silenceStart = 0; // Reset silence timer on voice activity
+      }
+    };
+
+    vadIntervalRef.current = window.setInterval(checkAudioLevel, 100);
+  }, []);
+
+  const cleanupVAD = useCallback(() => {
+    if (vadIntervalRef.current) {
+      clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    analyserRef.current = null;
+  }, []);
+
   const startListening = useCallback(async () => {
     try {
       updateState({ error: null });
@@ -75,6 +134,9 @@ export const useVoiceAI = () => {
       
       streamRef.current = stream;
       audioChunksRef.current = [];
+
+      // Setup Voice Activity Detection
+      setupVAD(stream);
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
@@ -102,7 +164,7 @@ export const useVoiceAI = () => {
         isListening: false 
       });
     }
-  }, [updateState, initializeAudio]);
+  }, [updateState, initializeAudio, setupVAD]);
 
   const stopListening = useCallback(() => {
     if (mediaRecorderRef.current && state.isListening) {
@@ -110,11 +172,13 @@ export const useVoiceAI = () => {
       updateState({ isListening: false, isProcessing: true });
     }
     
+    cleanupVAD();
+    
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-  }, [state.isListening, updateState]);
+  }, [state.isListening, updateState, cleanupVAD]);
 
   const processAudio = useCallback(async () => {
     try {
@@ -135,11 +199,14 @@ export const useVoiceAI = () => {
         reader.readAsDataURL(audioBlob);
       });
 
-      // STEP 1 & 2: Send to voice assistant for transcription and AI processing
+      // Send to voice assistant with current page context
       const voiceResponse = await fetch('/api/voice-assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: base64Audio
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          audio: base64Audio, 
+          mode: location.pathname 
+        })
       });
 
       if (!voiceResponse.ok) throw new Error('Voice assistant request failed');
@@ -157,7 +224,7 @@ export const useVoiceAI = () => {
 
       const textToSpeak = voiceData.reply || voiceData.toolResult?.result || 'I got your message';
 
-      // STEP 3: Convert response text to speech using existing TTS API
+      // Convert response text to speech
       await convertTextToSpeech(textToSpeak);
 
       updateState({ 
@@ -173,13 +240,12 @@ export const useVoiceAI = () => {
         error: error instanceof Error ? error.message : 'Failed to process audio. Please try again.' 
       });
     }
-  }, [navigate, updateState]);
+  }, [navigate, updateState, location.pathname]);
 
   const convertTextToSpeech = useCallback(async (text: string) => {
     try {
       updateState({ isPlaying: true });
 
-      // Use the existing text-to-speech API
       const ttsResponse = await fetch('/api/text-to-speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -188,7 +254,6 @@ export const useVoiceAI = () => {
 
       if (!ttsResponse.ok) throw new Error('Text-to-speech failed');
 
-      // Get audio blob from TTS response
       const audioBlob = await ttsResponse.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
@@ -196,6 +261,17 @@ export const useVoiceAI = () => {
       audio.onended = () => {
         updateState({ isPlaying: false });
         URL.revokeObjectURL(audioUrl);
+        
+        // AUTO-RESTART: Start listening again after AI finishes speaking
+        // Only restart if we're on a page that benefits from continuous conversation
+        const continuousPages = ['/', '/journal', '/companion'];
+        if (continuousPages.includes(location.pathname)) {
+          setTimeout(() => {
+            if (!state.isProcessing && !state.isPlaying) {
+              startListening();
+            }
+          }, 500); // Small delay to prevent immediate restart
+        }
       };
       
       audio.onerror = () => {
@@ -209,7 +285,7 @@ export const useVoiceAI = () => {
       console.error('Text-to-speech failed:', error);
       updateState({ isPlaying: false, error: 'Could not generate speech response' });
     }
-  }, [updateState]);
+  }, [updateState, location.pathname, startListening, state.isProcessing, state.isPlaying]);
 
   const toggleListening = useCallback(() => {
     if (state.isListening) {
@@ -222,6 +298,16 @@ export const useVoiceAI = () => {
   const clearError = useCallback(() => {
     updateState({ error: null });
   }, [updateState]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupVAD();
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [cleanupVAD]);
 
   return {
     ...state,

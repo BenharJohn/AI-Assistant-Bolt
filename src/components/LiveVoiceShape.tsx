@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { useVoiceAI } from '../hooks/useVoiceAI';
 import { useSettings } from '../context/SettingsContext';
 
@@ -9,6 +10,7 @@ interface LiveVoiceShapeProps {
 
 const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
   const { reducedMotion } = useSettings();
+  const location = useLocation();
   const {
     isListening,
     isProcessing,
@@ -19,26 +21,38 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
   } = useVoiceAI();
 
   const [isHovered, setIsHovered] = useState(false);
+  const [pathAnimation, setPathAnimation] = useState(0);
+
+  // Animate the path continuously
+  useEffect(() => {
+    if (reducedMotion) return;
+    
+    const interval = setInterval(() => {
+      setPathAnimation(prev => prev + 0.02);
+    }, 50);
+    
+    return () => clearInterval(interval);
+  }, [reducedMotion]);
 
   // Generate organic shape path based on state
   const generatePath = () => {
-    const baseTime = Date.now() * 0.001;
+    const time = pathAnimation;
     
     if (isListening) {
       // More active, wavy shape when listening
-      return `M 25 50 Q 35 ${45 + Math.sin(baseTime * 2) * 8}, 50 ${40 + Math.sin(baseTime * 1.5) * 10} T 75 50 Q 65 ${55 + Math.cos(baseTime * 2) * 8}, 50 50 T 25 50`;
+      return `M 25 50 Q 35 ${45 + Math.sin(time * 3) * 8}, 50 ${40 + Math.sin(time * 2.5) * 10} T 75 50 Q 65 ${55 + Math.cos(time * 3) * 8}, 50 50 T 25 50`;
     } else if (isProcessing) {
       // Pulsing, thinking pattern
-      return `M 25 50 Q 35 ${48 + Math.sin(baseTime * 3) * 5}, 50 ${45 + Math.sin(baseTime * 2.5) * 7} T 75 50 Q 65 ${52 + Math.cos(baseTime * 3) * 5}, 50 50 T 25 50`;
+      return `M 25 50 Q 35 ${48 + Math.sin(time * 4) * 5}, 50 ${45 + Math.sin(time * 3.5) * 7} T 75 50 Q 65 ${52 + Math.cos(time * 4) * 5}, 50 50 T 25 50`;
     } else if (isPlaying) {
       // Rhythmic, speaking pattern
-      return `M 25 50 Q 35 ${47 + Math.sin(baseTime * 4) * 6}, 50 ${42 + Math.sin(baseTime * 3) * 8} T 75 50 Q 65 ${53 + Math.cos(baseTime * 4) * 6}, 50 50 T 25 50`;
+      return `M 25 50 Q 35 ${47 + Math.sin(time * 5) * 6}, 50 ${42 + Math.sin(time * 4) * 8} T 75 50 Q 65 ${53 + Math.cos(time * 5) * 6}, 50 50 T 25 50`;
     } else if (isHovered) {
       // Gentle hover state
-      return `M 25 50 Q 35 ${49 + Math.sin(baseTime) * 3}, 50 ${47 + Math.sin(baseTime * 0.8) * 4} T 75 50 Q 65 ${51 + Math.cos(baseTime) * 3}, 50 50 T 25 50`;
+      return `M 25 50 Q 35 ${49 + Math.sin(time * 1.5) * 3}, 50 ${47 + Math.sin(time * 1.2) * 4} T 75 50 Q 65 ${51 + Math.cos(time * 1.5) * 3}, 50 50 T 25 50`;
     } else {
       // Calm, idle state
-      return `M 25 50 Q 35 50, 50 48 T 75 50 Q 65 52, 50 50 T 25 50`;
+      return `M 25 50 Q 35 ${50 + Math.sin(time * 0.8) * 2}, 50 ${48 + Math.sin(time * 0.6) * 2} T 75 50 Q 65 ${50 + Math.cos(time * 0.8) * 2}, 50 50 T 25 50`;
     }
   };
 
@@ -55,6 +69,27 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
     if (isActive) return 'drop-shadow-lg';
     if (isHovered) return 'drop-shadow-md';
     return 'drop-shadow-sm';
+  };
+
+  const getStatusText = () => {
+    if (error) return 'Error - Tap to retry';
+    if (isListening) return 'Listening...';
+    if (isProcessing) return 'Processing...';
+    if (isPlaying) return 'Speaking...';
+    
+    // Context-aware prompt based on current page
+    switch (location.pathname) {
+      case '/journal':
+        return 'Share your thoughts';
+      case '/focus':
+        return 'Focus check-in';
+      case '/learning':
+        return 'Ask me anything';
+      case '/tasks':
+        return 'Manage your tasks';
+      default:
+        return 'Tap to talk';
+    }
   };
 
   return (
@@ -75,16 +110,14 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
             d={generatePath()}
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth={isActive ? "3" : "2"}
             strokeLinecap="round"
             strokeLinejoin="round"
             animate={{
-              d: generatePath(),
               strokeWidth: isActive ? [2, 3, 2] : 2,
               opacity: error ? [1, 0.3, 1] : 1
             }}
             transition={{
-              d: { duration: 2, ease: "easeInOut", repeat: Infinity },
               strokeWidth: { duration: 1, ease: "easeInOut", repeat: Infinity },
               opacity: { duration: 0.5, repeat: error ? Infinity : 0 }
             }}
@@ -154,11 +187,7 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
             exit={{ opacity: 0, y: 10 }}
             className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap z-10"
           >
-            {error ? 'Error - Tap to retry' :
-             isListening ? 'Listening...' :
-             isProcessing ? 'Processing...' :
-             isPlaying ? 'Speaking...' :
-             'Tap to talk'}
+            {getStatusText()}
           </motion.div>
         )}
       </AnimatePresence>

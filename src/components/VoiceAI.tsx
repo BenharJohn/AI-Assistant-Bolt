@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, Volume2, Loader, AlertCircle, X } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { useVoiceAI } from '../hooks/useVoiceAI';
 import { useSettings } from '../context/SettingsContext';
 
@@ -18,6 +19,7 @@ const VoiceAI: React.FC<VoiceAIProps> = ({
   className = '' 
 }) => {
   const { reducedMotion } = useSettings();
+  const location = useLocation();
   const {
     isListening,
     isProcessing,
@@ -42,7 +44,20 @@ const VoiceAI: React.FC<VoiceAIProps> = ({
     if (isListening) return 'Listening...';
     if (isProcessing) return 'Processing...';
     if (isPlaying) return 'Speaking...';
-    return 'Tap to talk';
+    
+    // Context-aware prompt based on current page
+    switch (location.pathname) {
+      case '/journal':
+        return 'Share your thoughts';
+      case '/focus':
+        return 'Need help focusing?';
+      case '/learning':
+        return 'What would you like to learn?';
+      case '/tasks':
+        return 'Manage your tasks';
+      default:
+        return 'How can I help you?';
+    }
   };
 
   const getStatusColor = () => {
@@ -56,6 +71,21 @@ const VoiceAI: React.FC<VoiceAIProps> = ({
     if (isPlaying) return <Volume2 size={24} />;
     if (isListening) return <MicOff size={24} />;
     return <Mic size={24} />;
+  };
+
+  const getPageSpecificHint = () => {
+    switch (location.pathname) {
+      case '/journal':
+        return "I'm here to listen and help you process your thoughts";
+      case '/focus':
+        return "I'll keep responses brief to help you stay focused";
+      case '/learning':
+        return "I can explain concepts and help you understand new topics";
+      case '/tasks':
+        return "I can help you add, update, and organize your tasks";
+      default:
+        return "I can help with tasks, learning, journaling, or focus";
+    }
   };
 
   if (variant === 'inline') {
@@ -99,6 +129,12 @@ const VoiceAI: React.FC<VoiceAIProps> = ({
           <p className={`text-sm font-medium ${getStatusColor()}`}>
             {getStatusText()}
           </p>
+          
+          {!isActive && !error && (
+            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+              {getPageSpecificHint()}
+            </p>
+          )}
           
           {lastResponse && !error && (
             <p className="text-xs text-muted-foreground mt-2 max-w-xs">
@@ -204,7 +240,7 @@ const VoiceAI: React.FC<VoiceAIProps> = ({
                   
                   {!isActive && !error && (
                     <p className="text-sm text-muted-foreground">
-                      Press and hold to speak, or tap to start conversation
+                      {getPageSpecificHint()}
                     </p>
                   )}
                   
