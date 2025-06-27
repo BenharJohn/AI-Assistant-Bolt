@@ -337,12 +337,31 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ error: 'No audio data provided' }), { status: 400 });
     }
 
+    // Get environment variables with fallbacks and better error reporting
     const API_KEY = process.env.GEMINI_API_KEY;
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!API_KEY || !supabaseUrl || !supabaseServiceKey) {
-      return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
+    // Detailed error checking
+    if (!API_KEY) {
+      console.error('Missing GEMINI_API_KEY environment variable');
+      return new Response(JSON.stringify({ 
+        error: 'Voice assistant requires Google AI API key. Please set GEMINI_API_KEY in environment variables.' 
+      }), { status: 500 });
+    }
+
+    if (!supabaseUrl) {
+      console.error('Missing Supabase URL environment variable');
+      return new Response(JSON.stringify({ 
+        error: 'Missing Supabase URL configuration.' 
+      }), { status: 500 });
+    }
+
+    if (!supabaseServiceKey) {
+      console.error('Missing Supabase service key environment variable');
+      return new Response(JSON.stringify({ 
+        error: 'Missing Supabase service key configuration.' 
+      }), { status: 500 });
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
