@@ -367,10 +367,13 @@ export default async (req, context) => {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // STEP 1: Use the correct model for voice interactions
+    // STEP 1: Use the native audio dialog model for direct audio I/O
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp", // Using the most advanced model available
-      tools: voiceAssistantTools 
+      model: "gemini-2.0-flash-exp",
+      tools: voiceAssistantTools,
+      generationConfig: {
+        responseMimeType: "audio/mpeg"
+      }
     });
 
     // STEP 2: Get dynamic system instruction based on current page
@@ -380,9 +383,9 @@ export default async (req, context) => {
       systemInstruction: systemInstruction
     });
 
-    // Send audio data for transcription and initial response
+    // Send audio data for transcription and get audio response
     const result = await chat.sendMessage([
-      "Transcribe this audio and then follow the user's command.",
+      "Listen to this audio message and respond appropriately based on your instructions.",
       { 
         inlineData: { 
           mimeType: "audio/webm", 
@@ -394,8 +397,7 @@ export default async (req, context) => {
     const response = result.response;
     const functionCalls = response.functionCalls();
 
-    // STEP 3: Handle any tool calls and get final text response
-    let finalResponseText;
+    // STEP 3: Handle any tool calls first
     let toolResult = null;
 
     if (functionCalls && functionCalls.length > 0) {
@@ -433,7 +435,7 @@ export default async (req, context) => {
         toolResult = { success: false, error: "I'm not sure how to help with that right now." };
       }
 
-      // Get the final response after executing the tool
+      // Get the final audio response after executing the tool
       const result2 = await chat.sendMessage([{ 
         functionResponse: { 
           name: call.name, 
@@ -441,21 +443,40 @@ export default async (req, context) => {
         } 
       }]);
 
-      finalResponseText = result2.response.text();
+      // Extract audio data from the response
+      const audioData = result2.response.data();
+      if (audioData) {
+        // Convert to base64 for transmission
+        const audioBase64 = Buffer.from(audioData).toString('base64');
+        
+        return new Response(JSON.stringify({ 
+          audioResponse: audioBase64,
+          toolResult: toolResult 
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     } else {
-      // No tools needed, use direct response
-      finalResponseText = response.text();
+      // No tools needed, get direct audio response
+      const audioData = response.data();
+      if (audioData) {
+        // Convert to base64 for transmission
+        const audioBase64 = Buffer.from(audioData).toString('base64');
+        
+        return new Response(JSON.stringify({ 
+          audioResponse: audioBase64
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    // STEP 4: Return the TEXT to be spoken
-    // The frontend will send this to the text-to-speech API
+    // Fallback if no audio data is available
     return new Response(JSON.stringify({ 
-      reply: finalResponseText, 
-      toolResult: toolResult 
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+      error: 'No audio response generated' 
+    }), { status: 500 });
 
   } catch (error) {
     console.error("Error in voice assistant:", error);
