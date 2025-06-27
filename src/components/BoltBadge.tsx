@@ -41,16 +41,16 @@ const BoltBadge: React.FC<BoltBadgeProps> = ({
       aria-label="Built with Bolt.new"
       title="Built with Bolt.new"
     >
-      {/* Use the downloaded image */}
+      {/* The path should be an absolute path from the root, not including "public" */}
       {variant === 'black' ? (
         <img 
-          src="public/black_circle_360x360.png" 
+          src="/black_circle_360x360.png" 
           alt="Built with Bolt.new" 
           className="w-full h-full object-contain"
           loading="lazy"
         />
       ) : (
-        // Fallback to white circle for dark backgrounds - could add white version later
+        // Fallback to white circle for dark backgrounds
         <div className="w-full h-full rounded-full bg-white flex items-center justify-center shadow-lg">
           <img 
             src="/black_circle_360x360.png" 
