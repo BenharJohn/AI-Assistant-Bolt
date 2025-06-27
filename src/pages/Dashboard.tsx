@@ -88,9 +88,9 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground relative">
-      {/* Bolt.new Badge - positioned absolutely in top right */}
-      <div className="absolute top-4 right-4 z-10">
-        <BoltBadge variant="black" />
+      {/* Bolt.new Badge - positioned absolutely in top right with improved visibility */}
+      <div className="fixed top-4 right-4 z-50 lg:absolute lg:top-4 lg:right-4">
+        <BoltBadge variant="black" size="md" className="shadow-lg" />
       </div>
 
       <motion.div
