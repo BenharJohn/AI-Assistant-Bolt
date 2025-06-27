@@ -209,7 +209,18 @@ export const useVoiceAI = () => {
         })
       });
 
-      if (!voiceResponse.ok) throw new Error('Voice assistant request failed');
+      // Handle non-successful responses by extracting detailed error message
+      if (!voiceResponse.ok) {
+        let errorMessage = 'Voice assistant request failed';
+        try {
+          const errorData = await voiceResponse.json();
+          errorMessage = errorData.error || errorData.message || `HTTP ${voiceResponse.status}: ${voiceResponse.statusText}`;
+        } catch {
+          // If we can't parse the error response, fall back to status text
+          errorMessage = `HTTP ${voiceResponse.status}: ${voiceResponse.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
 
       const voiceData: VoiceAIResponse = await voiceResponse.json();
       
