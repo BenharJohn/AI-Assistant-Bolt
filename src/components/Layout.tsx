@@ -147,13 +147,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="flex items-center space-x-3">
                 {/* 🎨 DESKTOP ICON LOGO - Change AevaLogo import above to use a different small logo */}
                 {/* 📏 TO CHANGE DESKTOP LOGO SIZE: 
-                    - Container size: Change "w-16 h-16" below
-                    - Image size: Change "w-14 h-14" below */}
-                <div className="w-20s h-20 flex items-center justify-center rounded-xl bg-primary/10">
+                    - Container size: Change "w-20 h-20" below
+                    - Image size: Change "w-18 h-18" below */}
+                {/* 🐛 FIXED: Removed the typo "w-20s" → "w-20" */}
+                <div className="w-20 h-20 flex items-center justify-center rounded-xl bg-primary/10">
                   <img 
                     src={AevaLogo} 
                     alt="Aeva Logo" 
-                    className="w-20 h-20 object-contain"
+                    className="w-18 h-18 object-contain"
                   />
                 </div>
                 {/* 🎨 DESKTOP TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
