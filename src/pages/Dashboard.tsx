@@ -1,3 +1,4 @@
+//dashboard
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react';
