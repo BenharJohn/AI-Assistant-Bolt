@@ -30,7 +30,7 @@ export const useVoiceAI = () => {
     isPlaying: false,
     error: null,
     lastResponse: null
-  }); 
+  });
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -199,7 +199,7 @@ export const useVoiceAI = () => {
         reader.readAsDataURL(audioBlob);
       });
 
-      // Send to voice assistant with current page context
+      // STEP 1: Send audio to voice assistant (The Brain) for transcription and logic
       const voiceResponse = await fetch('/api/voice-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -209,14 +209,13 @@ export const useVoiceAI = () => {
         })
       });
 
-      // Handle non-successful responses by extracting detailed error message
+      // Handle non-successful responses with detailed error messages
       if (!voiceResponse.ok) {
         let errorMessage = 'Voice assistant request failed';
         try {
           const errorData = await voiceResponse.json();
           errorMessage = errorData.error || errorData.message || `HTTP ${voiceResponse.status}: ${voiceResponse.statusText}`;
         } catch {
-          // If we can't parse the error response, fall back to status text
           errorMessage = `HTTP ${voiceResponse.status}: ${voiceResponse.statusText}`;
         }
         throw new Error(errorMessage);
@@ -235,7 +234,7 @@ export const useVoiceAI = () => {
 
       const textToSpeak = voiceData.reply || voiceData.toolResult?.result || 'I got your message';
 
-      // Convert response text to speech
+      // STEP 2: Convert response text to speech using the dedicated TTS endpoint
       await convertTextToSpeech(textToSpeak);
 
       updateState({ 
@@ -257,6 +256,7 @@ export const useVoiceAI = () => {
     try {
       updateState({ isPlaying: true });
 
+      // STEP 3: Send text to the dedicated TTS endpoint
       const ttsResponse = await fetch('/api/text-to-speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -265,32 +265,67 @@ export const useVoiceAI = () => {
 
       if (!ttsResponse.ok) throw new Error('Text-to-speech failed');
 
-      const audioBlob = await ttsResponse.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
+      const ttsData = await ttsResponse.json();
       
-      audio.onended = () => {
-        updateState({ isPlaying: false });
-        URL.revokeObjectURL(audioUrl);
-        
-        // AUTO-RESTART: Start listening again after AI finishes speaking
-        // Only restart if we're on a page that benefits from continuous conversation
-        const continuousPages = ['/', '/journal', '/companion'];
-        if (continuousPages.includes(location.pathname)) {
-          setTimeout(() => {
-            if (!state.isProcessing && !state.isPlaying) {
-              startListening();
+      // For now, use Web Speech API as fallback since Gemini TTS isn't fully available yet
+      if (ttsData.useWebSpeechAPI) {
+        // Use browser's built-in speech synthesis
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.rate = 0.9;
+          utterance.pitch = 1;
+          utterance.volume = 1;
+          
+          utterance.onend = () => {
+            updateState({ isPlaying: false });
+            
+            // AUTO-RESTART: Start listening again after AI finishes speaking
+            const continuousPages = ['/', '/journal', '/companion'];
+            if (continuousPages.includes(location.pathname)) {
+              setTimeout(() => {
+                if (!state.isProcessing && !state.isPlaying) {
+                  startListening();
+                }
+              }, 500);
             }
-          }, 500); // Small delay to prevent immediate restart
-        }
-      };
-      
-      audio.onerror = () => {
-        updateState({ isPlaying: false, error: 'Could not play audio response' });
-        URL.revokeObjectURL(audioUrl);
-      };
+          };
+          
+          utterance.onerror = () => {
+            updateState({ isPlaying: false, error: 'Could not play audio response' });
+          };
 
-      await audio.play();
+          window.speechSynthesis.speak(utterance);
+        } else {
+          throw new Error('Speech synthesis not supported');
+        }
+      } else {
+        // Handle actual audio blob response when available
+        const audioBlob = await ttsResponse.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        audio.onended = () => {
+          updateState({ isPlaying: false });
+          URL.revokeObjectURL(audioUrl);
+          
+          // AUTO-RESTART: Start listening again after AI finishes speaking
+          const continuousPages = ['/', '/journal', '/companion'];
+          if (continuousPages.includes(location.pathname)) {
+            setTimeout(() => {
+              if (!state.isProcessing && !state.isPlaying) {
+                startListening();
+              }
+            }, 500);
+          }
+        };
+        
+        audio.onerror = () => {
+          updateState({ isPlaying: false, error: 'Could not play audio response' });
+          URL.revokeObjectURL(audioUrl);
+        };
+
+        await audio.play();
+      }
 
     } catch (error) {
       console.error('Text-to-speech failed:', error);
@@ -324,6 +359,6 @@ export const useVoiceAI = () => {
     ...state,
     toggleListening,
     clearError,
-    isActive: state.isListening || state.isProcessing || state.isPlaying 
+    isActive: state.isListening || state.isProcessing || state.isPlaying
   };
 };

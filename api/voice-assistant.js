@@ -215,19 +215,19 @@ function getSystemInstruction(mode) {
 
   switch (mode) {
     case '/journal':
-      return `You are a compassionate AI companion for journaling. Listen deeply, ask thoughtful questions, and help users process emotions. Keep responses warm and gentle (20-45 seconds). ${baseDate}`;
+      return `You are a compassionate AI companion for journaling. First, transcribe the user's audio accurately. Then listen deeply, ask thoughtful questions, and help users process emotions. Keep responses warm and gentle (20-45 seconds). ${baseDate}`;
 
     case '/focus':
-      return `You are a calm, minimally intrusive AI for focus mode. Keep responses brief (10-20 seconds) and avoid breaking concentration. Be a quiet, encouraging presence. ${baseDate}`;
+      return `You are a calm, minimally intrusive AI for focus mode. First, transcribe the user's audio accurately. Then keep responses brief (10-20 seconds) and avoid breaking concentration. Be a quiet, encouraging presence. ${baseDate}`;
 
     case '/learning':
-      return `You are an intelligent AI tutor. Explain concepts clearly, break down complex ideas, and encourage learning. Speak clearly at a good pace (20-40 seconds). ${baseDate}`;
+      return `You are an intelligent AI tutor. First, transcribe the user's audio accurately. Then explain concepts clearly, break down complex ideas, and encourage learning. Speak clearly at a good pace (20-40 seconds). ${baseDate}`;
 
     case '/tasks':
-      return `You are an efficient AI task manager. Help with adding, updating, and organizing tasks. Be direct and action-oriented (15-30 seconds). Use tools proactively. ${baseDate}`;
+      return `You are an efficient AI task manager. First, transcribe the user's audio accurately. Then help with adding, updating, and organizing tasks. Be direct and action-oriented (15-30 seconds). Use tools proactively. ${baseDate}`;
 
     default:
-      return `You are FocusAssist, a warm AI companion helping people with ADHD and focus challenges. Be conversational, encouraging, and helpful (20-40 seconds). Use navigation tools when users mention specific features. ${baseDate}`;
+      return `You are FocusAssist, a warm AI companion helping people with ADHD and focus challenges. First, transcribe the user's audio accurately. Then be conversational, encouraging, and helpful (20-40 seconds). Use navigation tools when users mention specific features. ${baseDate}`;
   }
 }
 
@@ -275,13 +275,13 @@ export default async (req, context) => {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // STEP 1: Use a model that properly supports audio input and system instructions
+    // STEP 1: Use gemini-1.5-pro for superior reasoning and complex understanding
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",  // Changed to stable model that supports audio
+      model: "gemini-1.5-pro",  // CHANGED: Using the best model for complex reasoning
       tools: voiceAssistantTools
     });
 
-    // STEP 2: Get dynamic system instruction based on current page
+    // STEP 2: Get dynamic system instruction with explicit transcription instruction
     const systemInstruction = getSystemInstruction(mode);
 
     const chat = model.startChat({
@@ -291,9 +291,9 @@ export default async (req, context) => {
       }
     });
 
-    // Send audio data for transcription and get text response
+    // Send audio data for transcription and intelligent response
     const result = await chat.sendMessage([
-      "Listen to this audio message and respond appropriately based on your instructions.",
+      "Listen to this audio message, transcribe it accurately, and then respond appropriately based on your instructions.",
       { 
         inlineData: { 
           mimeType: "audio/webm", 
@@ -358,8 +358,8 @@ export default async (req, context) => {
       finalResponseText = response.text();
     }
 
-    // STEP 4: Return the TEXT to be spoken
-    // The frontend will send this to the text-to-speech API
+    // STEP 4: Return ONLY the TEXT to be spoken
+    // The frontend will send this to the separate text-to-speech API
     return new Response(JSON.stringify({ 
       reply: finalResponseText, 
       toolResult: toolResult 
