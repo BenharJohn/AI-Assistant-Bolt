@@ -1,3 +1,4 @@
+/// layout.tsx
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -13,6 +14,7 @@ import {
   BookHeart,
   Bot
 } from 'lucide-react';
+import LiveVoiceShape from './LiveVoiceShape';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -62,7 +64,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu */} 
       {menuOpen && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -152,6 +154,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ))}
         </div>
       </nav>
+
+      {/* Global Floating Voice Assistant */}
+      <div className="fixed bottom-24 right-6 lg:bottom-8 lg:right-8 z-40">
+        <div className="flex flex-col items-center">
+          <LiveVoiceShape className="mb-2" />
+          <motion.p 
+            className="text-xs text-muted-foreground text-center bg-card/80 backdrop-blur-sm px-2 py-1 rounded-lg shadow-sm border border-appBorder/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+          >
+            AI Assistant
+          </motion.p>
+        </div>
+      </div>
     </div>
   );
 };
