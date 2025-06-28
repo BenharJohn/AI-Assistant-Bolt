@@ -88,11 +88,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             alt="Aeva Logo" 
             className="w-16 h-16 object-contain"
           />
-          {/* 🎨 MOBILE TEXT LOGO - Increased negative margin to bring it closer */}
+          {/* 🎨 MOBILE TEXT LOGO - Negative margin to bring it closer */}
           <img 
             src={AevaTextLogo} 
             alt="Aeva" 
-            className="h-10 object-contain -ml-4"
+            className="h-10 object-contain -ml-2"
           />
         </div>
         <div className="flex items-center space-x-2">
@@ -147,11 +147,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   alt="Aeva Logo" 
                   className="w-20 h-20 object-contain"
                 />
-                {/* 🎨 DESKTOP TEXT LOGO - Increased negative margin to bring it closer */}
+                {/* 🎨 DESKTOP TEXT LOGO - Negative margin to bring it closer */}
                 <img 
                   src={AevaTextLogo} 
                   alt="Aeva" 
-                  className="h-12 object-contain -ml-5"
+                  className="h-12 object-contain -ml-3"
                 />
               </div>
             </div>
