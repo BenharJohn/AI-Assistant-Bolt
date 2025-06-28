@@ -1,7 +1,7 @@
 //dashboard
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Book, CalendarClock, PlusCircle, CheckCircle, Clock } from 'lucide-react';
+import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTask } from '../context/TaskContext';
 import TaskCard from '../components/TaskCard';
@@ -94,8 +94,8 @@ const Dashboard: React.FC = () => {
         <BoltBadge size="md" className="shadow-lg" />
       </div>
 
-      {/* Main Content Container - Centered and constrained for better organization */}
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
+      {/* Main Content Container - Centered with generous spacing */}
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -114,7 +114,7 @@ const Dashboard: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Stats Section - Improved spacing and organization */}
+          {/* Stats Section - Generous spacing */}
           <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
             {/* Card 1: Tasks Today */}
             <div className="bg-card rounded-2xl shadow-warm p-8 border border-appBorder">
@@ -179,119 +179,116 @@ const Dashboard: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Two-column layout for better organization on larger screens */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* Priority Tasks - Takes up 2 columns */}
-            <motion.div variants={itemVariants} className="xl:col-span-2">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold text-foreground">Priority Tasks</h2>
-                <button 
-                  onClick={() => navigate('/tasks')}
-                  className={`text-primary hover:text-primary-hover flex items-center text-sm font-medium transition-colors duration-200`}
-                >
-                  <PlusCircle size={16} className="mr-1" />
-                  Add Task
-                </button>
+          {/* Priority Tasks - Full width, relaxed single column */}
+          <motion.div variants={itemVariants} className="mb-12">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-foreground">Priority Tasks</h2>
+              <button 
+                onClick={() => navigate('/tasks')}
+                className={`text-primary hover:text-primary-hover flex items-center text-sm font-medium transition-colors duration-200`}
+              >
+                <PlusCircle size={16} className="mr-1" />
+                Add Task
+              </button>
+            </div>
+
+            {state.loading ? (
+              <div className="bg-card rounded-2xl p-8 text-center">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-muted rounded w-1/4 mx-auto mb-2"></div>
+                  <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
+                </div>
               </div>
-
-              {state.loading ? (
-                <div className="bg-card rounded-2xl p-8 text-center">
-                  <div className="animate-pulse">
-                    <div className="h-4 bg-muted rounded w-1/4 mx-auto mb-2"></div>
-                    <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
+            ) : state.error ? (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-8 text-center">
+                <p className="text-red-600 dark:text-red-400 font-medium">Unable to load tasks</p>
+                <p className="text-red-500 dark:text-red-300 text-sm mt-1">{state.error}</p>
+              </div>
+            ) : priorityTasks.length > 0 ? (
+              <div className="space-y-4">
+                {priorityTasks.map(task => (
+                  <TaskCard key={task.id} task={task} onEdit={() => navigate('/tasks')} />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-muted border-appBorder rounded-2xl p-8 text-center">
+                <Brain size={32} className="mx-auto text-muted-foreground mb-3" />
+                {totalTasks === 0 ? (
+                  <div>
+                    <p className="text-muted-foreground font-medium">No tasks yet!</p>
+                    <p className="text-muted-foreground text-sm mt-1">Get started by creating your first task.</p>
                   </div>
-                </div>
-              ) : state.error ? (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-8 text-center">
-                  <p className="text-red-600 dark:text-red-400 font-medium">Unable to load tasks</p>
-                  <p className="text-red-500 dark:text-red-300 text-sm mt-1">{state.error}</p>
-                </div>
-              ) : priorityTasks.length > 0 ? (
-                <div className="space-y-4">
-                  {priorityTasks.map(task => (
-                    <TaskCard key={task.id} task={task} onEdit={() => navigate('/tasks')} />
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-muted border-appBorder rounded-2xl p-8 text-center">
-                  <CheckCircle size={32} className="mx-auto text-muted-foreground mb-3" />
-                  {totalTasks === 0 ? (
-                    <div>
-                      <p className="text-muted-foreground font-medium">No tasks yet!</p>
-                      <p className="text-muted-foreground text-sm mt-1">Get started by creating your first task.</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-muted-foreground font-medium">No priority tasks right now!</p>
-                      <p className="text-muted-foreground text-sm mt-1">You're all caught up with urgent items.</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                ) : (
+                  <div>
+                    <p className="text-muted-foreground font-medium">No priority tasks right now!</p>
+                    <p className="text-muted-foreground text-sm mt-1">You're all caught up with urgent items.</p>
+                  </div>
+                )}
+              </div>
+            )}
 
-              {priorityTasks.length > 0 && (
-                <button 
-                  onClick={() => navigate('/tasks')}
-                  className={`w-full mt-6 text-primary hover:text-primary-hover text-sm font-medium transition-colors duration-200`}
-                >
-                  View All Tasks →
-                </button>
-              )}
-            </motion.div>
+            {priorityTasks.length > 0 && (
+              <button 
+                onClick={() => navigate('/tasks')}
+                className={`w-full mt-6 text-primary hover:text-primary-hover text-sm font-medium transition-colors duration-200`}
+              >
+                View All Tasks →
+              </button>
+            )}
+          </motion.div>
 
-            {/* Learning Resources - Takes up 1 column */}
-            <motion.div variants={itemVariants} className="xl:col-span-1">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold text-foreground">Learning Resources</h2>
+          {/* Learning Resources - Full width, relaxed spacing */}
+          <motion.div variants={itemVariants}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-foreground">Learning Resources</h2>
+              <button 
+                onClick={() => navigate('/learning')}
+                className={`text-primary hover:text-primary-hover flex items-center text-sm font-medium transition-colors duration-200`}
+              >
+                View All
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Learning Card 1 */}
+              <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+                <div className="flex items-center mb-3">
+                  <div className="rounded-full bg-secondary/10 p-2 mr-3">
+                    <Brain size={20} className={`${iconSecondaryColor}`} />
+                  </div>
+                  <h3 className="font-medium text-card-foreground">Understanding ADHD</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Learn about executive functioning, attention regulation, and practical strategies for everyday life.
+                </p>
                 <button 
                   onClick={() => navigate('/learning')}
-                  className={`text-primary hover:text-primary-hover flex items-center text-sm font-medium transition-colors duration-200`}
+                  className={`text-secondary hover:text-secondary-hover text-sm font-medium transition-colors duration-200`}
                 >
-                  View All
+                  Explore →
                 </button>
               </div>
 
-              <div className="space-y-6">
-                {/* Learning Card 1 */}
-                <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
-                  <div className="flex items-center mb-3">
-                    <div className="rounded-full bg-secondary/10 p-2 mr-3">
-                      <CheckCircle size={20} className={`${iconSecondaryColor}`} />
-                    </div>
-                    <h3 className="font-medium text-card-foreground">Understanding ADHD</h3>
+              {/* Learning Card 2 */}
+              <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+                <div className="flex items-center mb-3">
+                  <div className="rounded-full bg-accent/10 p-2 mr-3">
+                    <Book size={20} className={`${iconAccentColor}`} />
                   </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Learn about executive functioning, attention regulation, and practical strategies for everyday life.
-                  </p>
-                  <button 
-                    onClick={() => navigate('/learning')}
-                    className={`text-secondary hover:text-secondary-hover text-sm font-medium transition-colors duration-200`}
-                  >
-                    Explore →
-                  </button>
+                  <h3 className="font-medium text-card-foreground">Reading Strategies</h3>
                 </div>
-
-                {/* Learning Card 2 */}
-                <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
-                  <div className="flex items-center mb-3">
-                    <div className="rounded-full bg-accent/10 p-2 mr-3">
-                      <Book size={20} className={`${iconAccentColor}`} />
-                    </div>
-                    <h3 className="font-medium text-card-foreground">Reading Strategies</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Effective techniques for improving reading comprehension, focus, and retention.
-                  </p>
-                  <button 
-                    onClick={() => navigate('/learning')}
-                    className={`text-accent hover:text-accent-hover text-sm font-medium transition-colors duration-200`}
-                  >
-                    Explore →
-                  </button>
-                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Effective techniques for improving reading comprehension, focus, and retention.
+                </p>
+                <button 
+                  onClick={() => navigate('/learning')}
+                  className={`text-accent hover:text-accent-hover text-sm font-medium transition-colors duration-200`}
+                >
+                  Explore →
+                </button>
               </div>
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
         </motion.div>
 
         {showAIAssistant && <AIAssistant onClose={() => setShowAIAssistant(false)} />}
