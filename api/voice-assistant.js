@@ -1,4 +1,3 @@
-// File: /api/voice-assistant.js
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -231,18 +230,43 @@ function getSystemInstruction(mode) {
   }
 }
 
-export default async (req, context) => {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
+export const handler = async (event, context) => {
+  // Add CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+
+  // Handle preflight request
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method Not Allowed' })
+    };
   }
 
   try {
     // Parse JSON body to get both audio and mode
-    const body = await req.json();
+    const body = JSON.parse(event.body);
     const { audio: audio_base64, mode = '/' } = body;
     
     if (!audio_base64) {
-      return new Response(JSON.stringify({ error: 'No audio data provided' }), { status: 400 });
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'No audio data provided' })
+      };
     }
 
     // Get environment variables with fallbacks and better error reporting
@@ -253,23 +277,35 @@ export default async (req, context) => {
     // Detailed error checking
     if (!API_KEY) {
       console.error('Missing GEMINI_API_KEY environment variable');
-      return new Response(JSON.stringify({ 
-        error: 'Voice assistant requires Google AI API key. Please set GEMINI_API_KEY in environment variables.' 
-      }), { status: 500 });
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Voice assistant requires Google AI API key. Please set GEMINI_API_KEY in environment variables.' 
+        })
+      };
     }
 
     if (!supabaseUrl) {
       console.error('Missing Supabase URL environment variable');
-      return new Response(JSON.stringify({ 
-        error: 'Missing Supabase URL configuration.' 
-      }), { status: 500 });
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Missing Supabase URL configuration.' 
+        })
+      };
     }
 
     if (!supabaseServiceKey) {
       console.error('Missing Supabase service key environment variable');
-      return new Response(JSON.stringify({ 
-        error: 'Missing Supabase service key configuration.' 
-      }), { status: 500 });
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Missing Supabase service key configuration.' 
+        })
+      };
     }
 
     const genAI = new GoogleGenerativeAI(API_KEY);
@@ -360,20 +396,23 @@ export default async (req, context) => {
 
     // STEP 4: Return ONLY the TEXT to be spoken
     // The frontend will send this to the separate text-to-speech API
-    return new Response(JSON.stringify({ 
-      reply: finalResponseText, 
-      toolResult: toolResult 
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        reply: finalResponseText, 
+        toolResult: toolResult 
+      })
+    };
 
   } catch (error) {
     console.error("Error in voice assistant:", error);
-    return new Response(JSON.stringify({ 
-      error: 'I had trouble processing that. Could you try speaking again?' 
-    }), { status: 500 });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'I had trouble processing that. Could you try speaking again?' 
+      })
+    };
   }
 };
-
-export const config = { path: "/api/voice-assistant" };
