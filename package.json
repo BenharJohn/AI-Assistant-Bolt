@@ -21,7 +21,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
-    "@netlify/vite-plugin": "^1.0.5",
+    "@netlify/vite-plugin": "^4.0.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.15.0",
     "eslint-plugin-react-hooks": "^5.0.0",
