@@ -39,6 +39,7 @@ export const useVoiceAI = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const silenceTimerRef = useRef<number | null>(null);
   const vadIntervalRef = useRef<number | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const updateState = useCallback((updates: Partial<VoiceAIState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -62,13 +63,13 @@ export const useVoiceAI = () => {
     }
   }, [updateState]);
 
-  // Voice Activity Detection setup
+  // Enhanced Voice Activity Detection setup
   const setupVAD = useCallback((stream: MediaStream) => {
     if (!audioContextRef.current) return;
 
     const source = audioContextRef.current.createMediaStreamSource(stream);
     const analyser = audioContextRef.current.createAnalyser();
-    analyser.fftSize = 256;
+    analyser.fftSize = 512;
     analyser.smoothingTimeConstant = 0.8;
     
     source.connect(analyser);
@@ -78,15 +79,15 @@ export const useVoiceAI = () => {
     const dataArray = new Uint8Array(bufferLength);
 
     let silenceStart = 0;
-    const SILENCE_THRESHOLD = 30; // Adjust based on testing
-    const SILENCE_DURATION = 1500; // 1.5 seconds of silence before stopping
+    const SILENCE_THRESHOLD = 25; // Adjusted for better sensitivity
+    const SILENCE_DURATION = 2000; // 2 seconds of silence before stopping
 
     const checkAudioLevel = () => {
       if (!analyserRef.current) return;
       
       analyser.getByteFrequencyData(dataArray);
       
-      // Calculate average volume
+      // Calculate average volume with better accuracy
       const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
       
       if (average < SILENCE_THRESHOLD) {
@@ -121,6 +122,12 @@ export const useVoiceAI = () => {
     try {
       updateState({ error: null });
       
+      // Stop any currently playing audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      
       if (!(await initializeAudio())) return;
 
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -128,7 +135,8 @@ export const useVoiceAI = () => {
           sampleRate: 16000,
           channelCount: 1,
           echoCancellation: true,
-          noiseSuppression: true
+          noiseSuppression: true,
+          autoGainControl: true
         } 
       });
       
@@ -152,6 +160,11 @@ export const useVoiceAI = () => {
 
       mediaRecorder.onstop = () => {
         processAudio();
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        updateState({ error: 'Recording failed. Please try again.', isListening: false });
       };
 
       mediaRecorder.start(100); // Collect data every 100ms
@@ -199,7 +212,7 @@ export const useVoiceAI = () => {
         reader.readAsDataURL(audioBlob);
       });
 
-      // STEP 1: Send audio to voice assistant (The Brain) for transcription and logic
+      // STEP 1: Send audio to voice assistant for transcription and logic
       const voiceResponse = await fetch('/api/voice-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -209,7 +222,6 @@ export const useVoiceAI = () => {
         })
       });
 
-      // Handle non-successful responses with detailed error messages
       if (!voiceResponse.ok) {
         let errorMessage = 'Voice assistant request failed';
         try {
@@ -234,7 +246,7 @@ export const useVoiceAI = () => {
 
       const textToSpeak = voiceData.reply || voiceData.toolResult?.result || 'I got your message';
 
-      // STEP 2: Convert response text to speech using the dedicated TTS endpoint
+      // STEP 2: Convert response text to speech
       await convertTextToSpeech(textToSpeak);
 
       updateState({ 
@@ -256,57 +268,31 @@ export const useVoiceAI = () => {
     try {
       updateState({ isPlaying: true });
 
-      // STEP 3: Send text to the dedicated TTS endpoint
-      const ttsResponse = await fetch('/api/text-to-speech', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-
-      if (!ttsResponse.ok) throw new Error('Text-to-speech failed');
-
-      const ttsData = await ttsResponse.json();
-      
-      // For now, use Web Speech API as fallback since Gemini TTS isn't fully available yet
-      if (ttsData.useWebSpeechAPI) {
-        // Use browser's built-in speech synthesis
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.rate = 0.9;
-          utterance.pitch = 1;
-          utterance.volume = 1;
-          
-          utterance.onend = () => {
-            updateState({ isPlaying: false });
-            
-            // AUTO-RESTART: Start listening again after AI finishes speaking
-            const continuousPages = ['/', '/journal', '/companion'];
-            if (continuousPages.includes(location.pathname)) {
-              setTimeout(() => {
-                if (!state.isProcessing && !state.isPlaying) {
-                  startListening();
-                }
-              }, 500);
-            }
-          };
-          
-          utterance.onerror = () => {
-            updateState({ isPlaying: false, error: 'Could not play audio response' });
-          };
-
-          window.speechSynthesis.speak(utterance);
-        } else {
-          throw new Error('Speech synthesis not supported');
-        }
-      } else {
-        // Handle actual audio blob response when available
-        const audioBlob = await ttsResponse.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
+      // Use Web Speech API for better compatibility and smoother experience
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
         
-        audio.onended = () => {
+        // Enhanced voice configuration
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        utterance.volume = 0.8;
+        
+        // Try to use a more natural voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(voice => 
+          voice.name.includes('Neural') || 
+          voice.name.includes('Enhanced') ||
+          voice.name.includes('Premium') ||
+          (voice.lang.startsWith('en') && voice.localService)
+        );
+        
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+        
+        utterance.onend = () => {
           updateState({ isPlaying: false });
-          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
           
           // AUTO-RESTART: Start listening again after AI finishes speaking
           const continuousPages = ['/', '/journal', '/companion'];
@@ -315,16 +301,21 @@ export const useVoiceAI = () => {
               if (!state.isProcessing && !state.isPlaying) {
                 startListening();
               }
-            }, 500);
+            }, 800); // Slightly longer delay for smoother experience
           }
         };
         
-        audio.onerror = () => {
+        utterance.onerror = (event) => {
+          console.error('Speech synthesis error:', event);
           updateState({ isPlaying: false, error: 'Could not play audio response' });
-          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
         };
 
-        await audio.play();
+        // Cancel any ongoing speech before starting new one
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+      } else {
+        throw new Error('Speech synthesis not supported');
       }
 
     } catch (error) {
@@ -345,15 +336,33 @@ export const useVoiceAI = () => {
     updateState({ error: null });
   }, [updateState]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount and handle page changes
   useEffect(() => {
     return () => {
       cleanupVAD();
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      window.speechSynthesis.cancel();
     };
   }, [cleanupVAD]);
+
+  // Handle page changes - stop any ongoing audio
+  useEffect(() => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    window.speechSynthesis.cancel();
+    
+    if (state.isPlaying) {
+      updateState({ isPlaying: false });
+    }
+  }, [location.pathname, state.isPlaying, updateState]);
 
   return {
     ...state,

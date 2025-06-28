@@ -87,24 +87,38 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
         return 'Ask me anything';
       case '/tasks':
         return 'Manage your tasks';
+      case '/companion':
+        return 'Let\'s chat';
       default:
         return 'Tap to talk';
     }
   };
 
+  // Handle click with smooth feedback
+  const handleClick = () => {
+    // Add haptic feedback if available
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+    toggleListening();
+  };
+
   return (
     <div className={`relative ${className}`}>
       <motion.div
-        className={`w-32 h-32 cursor-pointer ${getGlowIntensity()}`}
-        onClick={toggleListening}
+        className={`w-32 h-32 cursor-pointer ${getGlowIntensity()} transition-all duration-300`}
+        onClick={handleClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         whileHover={reducedMotion ? {} : { scale: 1.05 }}
         whileTap={reducedMotion ? {} : { scale: 0.95 }}
+        style={{ 
+          filter: error ? 'brightness(1.2) contrast(1.1)' : 'none'
+        }}
       >
         <svg
           viewBox="0 0 100 100"
-          className={`w-full h-full ${getShapeColor()} transition-colors duration-300`}
+          className={`w-full h-full ${getShapeColor()} transition-all duration-500 ease-in-out`}
         >
           <motion.path
             d={generatePath()}
@@ -118,12 +132,19 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
               opacity: error ? [1, 0.3, 1] : 1
             }}
             transition={{
-              strokeWidth: { duration: 1, ease: "easeInOut", repeat: Infinity },
-              opacity: { duration: 0.5, repeat: error ? Infinity : 0 }
+              strokeWidth: { 
+                duration: 1.5, 
+                ease: "easeInOut", 
+                repeat: isActive ? Infinity : 0 
+              },
+              opacity: { 
+                duration: 0.8, 
+                repeat: error ? Infinity : 0 
+              }
             }}
           />
           
-          {/* Center indicator */}
+          {/* Center indicator with smooth pulsing */}
           <motion.circle
             cx="50"
             cy="50"
@@ -134,21 +155,21 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
               opacity: [0.6, 1, 0.6]
             }}
             transition={{
-              duration: 1.5,
+              duration: 2,
               ease: "easeInOut",
               repeat: Infinity
             }}
           />
         </svg>
 
-        {/* Ambient particles when active */}
+        {/* Enhanced ambient particles when active */}
         <AnimatePresence>
           {isActive && !reducedMotion && (
             <>
-              {[...Array(6)].map((_, i) => (
+              {[...Array(8)].map((_, i) => (
                 <motion.div
                   key={i}
-                  className={`absolute w-1 h-1 ${getShapeColor().replace('text-', 'bg-')} rounded-full opacity-60`}
+                  className={`absolute w-1.5 h-1.5 ${getShapeColor().replace('text-', 'bg-')} rounded-full`}
                   initial={{ 
                     opacity: 0,
                     scale: 0,
@@ -156,20 +177,20 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
                     y: "50%"
                   }}
                   animate={{ 
-                    opacity: [0, 1, 0],
-                    scale: [0, 1, 0],
-                    x: ["50%", `${50 + Math.cos(i * 60 * Math.PI / 180) * 60}%`],
-                    y: ["50%", `${50 + Math.sin(i * 60 * Math.PI / 180) * 60}%`]
+                    opacity: [0, 0.8, 0],
+                    scale: [0, 1.2, 0],
+                    x: ["50%", `${50 + Math.cos(i * 45 * Math.PI / 180) * 80}%`],
+                    y: ["50%", `${50 + Math.sin(i * 45 * Math.PI / 180) * 80}%`]
                   }}
                   exit={{ 
                     opacity: 0,
                     scale: 0
                   }}
                   transition={{ 
-                    duration: 2,
-                    ease: "easeInOut",
+                    duration: 2.5,
+                    ease: "easeOut",
                     repeat: Infinity,
-                    delay: i * 0.2
+                    delay: i * 0.15
                   }}
                 />
               ))}
@@ -178,16 +199,21 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
         </AnimatePresence>
       </motion.div>
 
-      {/* Status tooltip */}
+      {/* Enhanced status tooltip with better positioning */}
       <AnimatePresence>
         {(isHovered || isActive) && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap z-10"
+            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
+            className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 px-3 py-1.5 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap z-10 shadow-lg"
           >
-            {getStatusText()}
+            <div className="text-center">
+              {getStatusText()}
+            </div>
+            {/* Tooltip arrow */}
+            <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-black/90 rotate-45"></div>
           </motion.div>
         )}
       </AnimatePresence>
