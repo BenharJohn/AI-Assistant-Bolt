@@ -71,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   };
 
-  // 🎭 COOL FRAMER MOTION VARIANTS
+  // 🎭 ENHANCED FRAMER MOTION VARIANTS FOR ALWAYS-VISIBLE LOGOS
   const logoContainerVariants = {
     collapsed: {
       transition: {
@@ -91,14 +91,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     collapsed: {
       scale: 1,
       rotate: 0,
-      transition: { duration: 0.3, ease: "easeInOut" }
+      x: 0,
+      transition: { duration: 0.4, ease: "easeInOut" }
     },
     expanded: {
       scale: 1.1,
       rotate: [0, -5, 5, 0],
+      x: 0,
       transition: { 
-        scale: { duration: 0.3, ease: "easeInOut" },
-        rotate: { duration: 0.6, ease: "easeInOut" }
+        scale: { duration: 0.4, ease: "easeInOut" },
+        rotate: { duration: 0.8, ease: "easeInOut" }
       }
     }
   };
@@ -107,27 +109,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     collapsed: {
       opacity: 1,
       x: 0,
-      scale: 0.9,
-      transition: { duration: 0.3, ease: "easeInOut" }
+      scale: 0.85,  // Slightly smaller when collapsed but still visible
+      transition: { duration: 0.4, ease: "easeInOut" }
     },
     expanded: {
       opacity: 1,
       x: 0,
       scale: 1,
-      transition: { duration: 0.3, ease: "easeInOut", delay: 0.1 }
+      transition: { duration: 0.4, ease: "easeInOut", delay: 0.1 }
     }
   };
 
   const glowVariants = {
     collapsed: {
-      opacity: 0,
-      scale: 0.8,
+      opacity: 0.1,
+      scale: 0.9,
+      transition: { duration: 0.3 }
     },
     expanded: {
-      opacity: [0, 0.3, 0],
-      scale: [0.8, 1.2, 0.8],
+      opacity: [0.1, 0.4, 0.1],
+      scale: [0.9, 1.3, 0.9],
       transition: {
-        duration: 2,
+        duration: 2.5,
         repeat: Infinity,
         ease: "easeInOut"
       }
@@ -137,11 +140,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navItemVariants = {
     collapsed: {
       x: 0,
-      transition: { duration: 0.2 }
+      transition: { duration: 0.3 }
     },
     expanded: {
-      x: [0, 3, 0],
-      transition: { duration: 0.4, ease: "easeInOut" }
+      x: [0, 4, 0],
+      transition: { duration: 0.5, ease: "easeInOut" }
     }
   };
 
@@ -152,7 +155,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* 🎯 MOBILE LOGO - TOUCHING CLOSE WITH FLOATING ANIMATION! */}
         <motion.div 
           className="flex items-center"
-          animate={{ y: [0, -2, 0] }}
+          animate={{ y: [0, -3, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         >
           {/* 🦊 MOBILE FOX LOGO - Larger size restored with subtle pulse */}
@@ -165,7 +168,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               rotate: [0, 1, 0, -1, 0]
             }}
             transition={{ 
-              duration: 3, 
+              duration: 3.5, 
               repeat: Infinity, 
               ease: "easeInOut" 
             }}
@@ -179,7 +182,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               opacity: [0.8, 1, 0.8]
             }}
             transition={{ 
-              duration: 2.5, 
+              duration: 2.8, 
               repeat: Infinity, 
               ease: "easeInOut" 
             }}
@@ -224,11 +227,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </motion.div>
       )}
 
-      {/* 🚀 ENHANCED DESKTOP SIDEBAR WITH ALWAYS-VISIBLE AEVA */}
+      {/* 🚀 ENHANCED DESKTOP SIDEBAR - WIDER COLLAPSED STATE FOR BOTH LOGOS */}
       <div className="hidden lg:flex">
         <motion.aside 
-          className={`fixed h-screen bg-card border-r transition-all duration-300 ease-in-out ${
-            isSidebarExpanded ? 'w-64' : 'w-20'
+          className={`fixed h-screen bg-card border-r transition-all duration-400 ease-in-out ${
+            isSidebarExpanded ? 'w-64' : 'w-36'  // Increased from w-20 to w-36 (144px) for both logos
           }`}
           onMouseEnter={() => setIsSidebarExpanded(true)}
           onMouseLeave={() => setIsSidebarExpanded(false)}
@@ -238,27 +241,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="p-6 relative">
               {/* 🌟 ANIMATED BACKGROUND GLOW */}
               <motion.div
-                className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/10 to-secondary/10 blur-xl"
+                className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10 blur-xl"
                 variants={glowVariants}
                 animate={isSidebarExpanded ? "expanded" : "collapsed"}
               />
               
-              {/* 🎯 DESKTOP LOGO - ALWAYS VISIBLE AEVA WITH COOL ANIMATIONS */}
+              {/* 🎯 DESKTOP LOGO - BOTH ALWAYS VISIBLE WITH COOL ANIMATIONS */}
               <motion.div 
-                className="flex items-center relative z-10"
+                className="flex items-center relative z-10 justify-center"
                 variants={logoContainerVariants}
                 animate={isSidebarExpanded ? "expanded" : "collapsed"}
               >
-                {/* 🦊 DESKTOP FOX LOGO - Larger size restored with rotation on hover */}
+                {/* 🦊 DESKTOP FOX LOGO - Always visible with rotation on hover */}
                 <motion.img 
                   src={AevaLogo} 
                   alt="Aeva Logo" 
-                  className="w-12 h-12 object-contain"
+                  className="w-12 h-12 object-contain flex-shrink-0"
                   variants={foxLogoVariants}
                   whileHover={{ 
-                    scale: 1.2,
+                    scale: 1.3,
                     rotate: 360,
-                    transition: { duration: 0.6 }
+                    transition: { duration: 0.7, type: "spring", stiffness: 300 }
+                  }}
+                  whileTap={{
+                    scale: 0.9,
+                    transition: { duration: 0.1 }
                   }}
                 />
                 
@@ -266,17 +273,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <motion.img 
                   src={AevaTextLogo} 
                   alt="Aeva" 
-                  className="h-8 object-contain ml-2"
+                  className="h-7 object-contain ml-1 flex-shrink-0"  // Slightly smaller in collapsed
                   variants={textLogoVariants}
                   whileHover={{ 
-                    scale: 1.1,
-                    transition: { duration: 0.2 }
+                    scale: 1.15,
+                    transition: { duration: 0.3, type: "spring", stiffness: 400 }
                   }}
                 />
               </motion.div>
             </div>
             
-            <nav className="flex-1 px-4 pb-4">
+            <nav className="flex-1 px-3 pb-4">
               {navItems.map((item, index) => (
                 <motion.div
                   key={item.path}
@@ -287,7 +294,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Link
                     to={item.path}
                     className={`flex items-center my-1 rounded-xl transition-all duration-300 ${
-                      isSidebarExpanded ? 'justify-start space-x-3 p-3' : 'justify-center p-3'
+                      isSidebarExpanded 
+                        ? 'justify-start space-x-3 p-3' 
+                        : 'justify-center p-2'  // Smaller padding when collapsed
                     } ${
                       location.pathname === item.path
                         ? 'bg-primary/10 text-primary border-l-4 border-primary'
@@ -297,9 +306,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <motion.div 
                       className="flex-shrink-0"
                       whileHover={{ 
-                        scale: 1.2,
-                        rotate: [0, -10, 10, 0],
-                        transition: { duration: 0.3 }
+                        scale: 1.3,
+                        rotate: [0, -12, 12, 0],
+                        transition: { duration: 0.4, type: "spring", stiffness: 300 }
                       }}
                     >
                       {item.icon}
@@ -307,11 +316,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <AnimatePresence>
                       {isSidebarExpanded && (
                         <motion.span
-                          className="whitespace-nowrap"
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          transition={{ duration: 0.2, delay: 0.1 }}
+                          className="whitespace-nowrap font-medium"
+                          initial={{ opacity: 0, x: -15, width: 0 }}
+                          animate={{ opacity: 1, x: 0, width: "auto" }}
+                          exit={{ opacity: 0, x: -15, width: 0 }}
+                          transition={{ duration: 0.3, delay: 0.1, ease: "easeOut" }}
                         >
                           {item.label}
                         </motion.span>
@@ -324,8 +333,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </motion.aside>
         
-        <main className={`transition-all duration-300 ease-in-out w-full ${
-          isSidebarExpanded ? 'ml-64' : 'ml-20'
+        <main className={`transition-all duration-400 ease-in-out w-full ${
+          isSidebarExpanded ? 'ml-64' : 'ml-36'  // Updated to match new collapsed width
         }`}>
           {children}
         </main>
@@ -343,13 +352,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center p-2 ${
+              className={`flex flex-col items-center justify-center p-2 transition-all duration-200 ${
                 location.pathname === item.path
-                  ? 'text-primary'
-                  : 'text-muted-foreground'
+                  ? 'text-primary scale-110'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {item.icon}
+              <motion.div
+                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.1 }}
+              >
+                {item.icon}
+              </motion.div>
               <span className="text-xs mt-1">{item.label}</span>
             </Link>
           ))}
