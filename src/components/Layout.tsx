@@ -81,23 +81,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center space-x-3">
-          {/* 🎨 MOBILE ICON LOGO - Change AevaLogo import above to use a different small logo */}
-          {/* 📏 TO CHANGE MOBILE LOGO SIZE: 
-              - Container size: Change "w-16 h-16" below
-              - Image size: Change "w-14 h-14" below */}
-          <div className="w-16 h-16 flex items-center justify-center rounded-xl bg-primary/10">
+          {/* 🎨 MOBILE FOX LOGO - Now BIGGER! */}
+          {/* 📏 MOBILE FOX LOGO SIZE: 
+              - Container size: w-20 h-20 (was w-16 h-16)
+              - Image size: w-18 h-18 (was w-14 h-14) */}
+          <div className="w-20 h-20 flex items-center justify-center rounded-xl bg-primary/10">
             <img 
               src={AevaLogo} 
               alt="Aeva Logo" 
-              className="w-14 h-14 object-contain"
+              className="w-18 h-18 object-contain"
             />
           </div>
-          {/* 🎨 MOBILE TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
-          {/* 📏 TO CHANGE MOBILE TEXT LOGO SIZE: Change "h-12" below */}
+          {/* 🎨 MOBILE TEXT LOGO - Now smaller */}
+          {/* 📏 MOBILE TEXT LOGO SIZE: h-10 (was h-12) */}
           <img 
             src={AevaTextLogo} 
             alt="Aeva" 
-            className="h-12 object-contain"
+            className="h-10 object-contain"
           />
         </div>
         <div className="flex items-center space-x-2">
@@ -145,24 +145,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex flex-col h-full">
             <div className="p-6">
               <div className="flex items-center space-x-3">
-                {/* 🎨 DESKTOP ICON LOGO - Change AevaLogo import above to use a different small logo */}
-                {/* 📏 TO CHANGE DESKTOP LOGO SIZE: 
-                    - Container size: Change "w-24 h-24" below
-                    - Image size: Change "w-20 h-20" below */}
-                {/* 🐛 FIXED: Removed the typo "w-20s" → "w-24" and made it even bigger! */}
-                <div className="w-24 h-24 flex items-center justify-center rounded-xl bg-primary/10">
+                {/* 🎨 DESKTOP FOX LOGO - Now MUCH BIGGER! */}
+                {/* 📏 DESKTOP FOX LOGO SIZE: 
+                    - Container size: w-32 h-32 (was w-24 h-24) 
+                    - Image size: w-28 h-28 (was w-20 h-20) */}
+                <div className="w-32 h-32 flex items-center justify-center rounded-xl bg-primary/10">
                   <img 
                     src={AevaLogo} 
                     alt="Aeva Logo" 
-                    className="w-20 h-20 object-contain"
+                    className="w-28 h-28 object-contain"
                   />
                 </div>
-                {/* 🎨 DESKTOP TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
-                {/* 📏 TO CHANGE DESKTOP TEXT LOGO SIZE: Change "h-14" below */}
+                {/* 🎨 DESKTOP TEXT LOGO - Now smaller */}
+                {/* 📏 DESKTOP TEXT LOGO SIZE: h-12 (was h-14) */}
                 <img 
                   src={AevaTextLogo} 
                   alt="Aeva" 
-                  className="h-14 object-contain"
+                  className="h-12 object-contain"
                 />
               </div>
             </div>
