@@ -71,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   };
 
-  // 🎭 ENHANCED FRAMER MOTION VARIANTS FOR DETACHED LOGO EFFECT
+  // 🎭 COOL FRAMER MOTION VARIANTS
   const logoContainerVariants = {
     collapsed: {
       transition: {
@@ -91,85 +91,56 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     collapsed: {
       scale: 1,
       rotate: 0,
-      transition: { duration: 0.4, ease: "easeInOut" }
+      transition: { duration: 0.3, ease: "easeInOut" }
     },
     expanded: {
       scale: 1.1,
       rotate: [0, -5, 5, 0],
       transition: { 
-        scale: { duration: 0.4, ease: "easeInOut" },
-        rotate: { duration: 0.8, ease: "easeInOut" }
+        scale: { duration: 0.3, ease: "easeInOut" },
+        rotate: { duration: 0.6, ease: "easeInOut" }
       }
     }
   };
 
-  // 🌟 CREATIVE TEXT LOGO DETACHMENT ANIMATION
   const textLogoVariants = {
     collapsed: {
       opacity: 1,
-      x: 85, // Slide out to the right of the fixed column
-      y: -5, // Slight vertical adjustment
-      scale: 0.6, // Shrink when detached
-      rotate: -2, // Slight tilt for dynamic effect
-      transition: { 
-        duration: 0.5, 
-        ease: [0.25, 0.46, 0.45, 0.94] // Custom easing for smooth slide
-      }
+      x: 0,
+      scale: 0.9,
+      transition: { duration: 0.3, ease: "easeInOut" }
     },
     expanded: {
       opacity: 1,
-      x: 8, // Position next to fox logo when expanded
-      y: 0,
-      scale: 1, // Full size when attached
-      rotate: 0,
-      transition: { 
-        duration: 0.5, 
-        ease: [0.25, 0.46, 0.45, 0.94],
-        delay: 0.1 // Slight delay for staggered animation
-      }
+      x: 0,
+      scale: 1,
+      transition: { duration: 0.3, ease: "easeInOut", delay: 0.1 }
     }
   };
 
-  // 🌈 ENHANCED GLOW ANIMATION
   const glowVariants = {
     collapsed: {
       opacity: 0,
       scale: 0.8,
-      transition: { duration: 0.3 }
     },
     expanded: {
-      opacity: [0, 0.4, 0],
-      scale: [0.8, 1.4, 0.8],
+      opacity: [0, 0.3, 0],
+      scale: [0.8, 1.2, 0.8],
       transition: {
-        duration: 3,
+        duration: 2,
         repeat: Infinity,
         ease: "easeInOut"
       }
     }
   };
 
-  // 🎯 NAVIGATION ITEM SLIDE ANIMATION
   const navItemVariants = {
     collapsed: {
       x: 0,
-      opacity: 1,
-      transition: { duration: 0.3 }
+      transition: { duration: 0.2 }
     },
     expanded: {
-      x: [0, 5, 0],
-      opacity: 1,
-      transition: { duration: 0.6, ease: "easeInOut" }
-    }
-  };
-
-  // 🚀 SIDEBAR CONTAINER ANIMATION
-  const sidebarVariants = {
-    collapsed: {
-      width: "0px",
-      transition: { duration: 0.4, ease: "easeInOut" }
-    },
-    expanded: {
-      width: "176px", // w-44 in pixels
+      x: [0, 3, 0],
       transition: { duration: 0.4, ease: "easeInOut" }
     }
   };
@@ -253,65 +224,57 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </motion.div>
       )}
 
-      {/* 🌟 REVOLUTIONARY DESKTOP SIDEBAR WITH DETACHED LOGO SYSTEM */}
+      {/* 🚀 ENHANCED DESKTOP SIDEBAR WITH ALWAYS-VISIBLE AEVA */}
       <div className="hidden lg:flex">
-        {/* 🏛️ FIXED LOGO COLUMN - Always visible, never moves */}
-        <div className="fixed h-screen w-20 bg-card border-r z-20">
-          <div className="p-4 pt-6 relative overflow-visible">
-            {/* 🌟 ANIMATED BACKGROUND GLOW */}
-            <motion.div
-              className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/10 to-secondary/10 blur-xl"
-              variants={glowVariants}
-              animate={isSidebarExpanded ? "expanded" : "collapsed"}
-            />
-            
-            {/* 🎯 LOGO CONTAINER WITH CREATIVE POSITIONING */}
-            <motion.div 
-              className="flex flex-col items-center relative z-10"
-              variants={logoContainerVariants}
-              animate={isSidebarExpanded ? "expanded" : "collapsed"}
-            >
-              {/* 🦊 FOX LOGO - Always centered in fixed column */}
-              <motion.img 
-                src={AevaLogo} 
-                alt="Aeva Logo" 
-                className="w-12 h-12 object-contain"
-                variants={foxLogoVariants}
-                whileHover={{ 
-                  scale: 1.3,
-                  rotate: 360,
-                  transition: { duration: 0.6 }
-                }}
-              />
-              
-              {/* 🎨 TEXT LOGO - CREATIVE DETACHMENT SYSTEM */}
-              <motion.img 
-                src={AevaTextLogo} 
-                alt="Aeva" 
-                className="h-6 object-contain absolute top-0"
-                variants={textLogoVariants}
-                whileHover={{ 
-                  scale: isSidebarExpanded ? 1.1 : 0.7,
-                  rotate: isSidebarExpanded ? 0 : 5,
-                  transition: { duration: 0.2 }
-                }}
-                style={{ zIndex: 30 }} // Ensure it appears above other elements
-              />
-            </motion.div>
-          </div>
-        </div>
-
-        {/* 🎛️ COLLAPSIBLE NAVIGATION SIDEBAR */}
         <motion.aside 
-          className="fixed h-screen left-20 bg-card border-r overflow-hidden"
-          variants={sidebarVariants}
-          animate={isSidebarExpanded ? "expanded" : "collapsed"}
+          className={`fixed h-screen bg-card border-r transition-all duration-300 ease-in-out ${
+            isSidebarExpanded ? 'w-64' : 'w-20'
+          }`}
           onMouseEnter={() => setIsSidebarExpanded(true)}
           onMouseLeave={() => setIsSidebarExpanded(false)}
+          animate={isSidebarExpanded ? "expanded" : "collapsed"}
         >
-          <div className="flex flex-col h-full w-44">
-            {/* Spacer to align navigation with content below logos */}
-            <div className="h-20"></div>
+          <div className="flex flex-col h-full">
+            <div className="p-6 relative">
+              {/* 🌟 ANIMATED BACKGROUND GLOW */}
+              <motion.div
+                className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/10 to-secondary/10 blur-xl"
+                variants={glowVariants}
+                animate={isSidebarExpanded ? "expanded" : "collapsed"}
+              />
+              
+              {/* 🎯 DESKTOP LOGO - ALWAYS VISIBLE AEVA WITH COOL ANIMATIONS */}
+              <motion.div 
+                className="flex items-center relative z-10"
+                variants={logoContainerVariants}
+                animate={isSidebarExpanded ? "expanded" : "collapsed"}
+              >
+                {/* 🦊 DESKTOP FOX LOGO - Larger size restored with rotation on hover */}
+                <motion.img 
+                  src={AevaLogo} 
+                  alt="Aeva Logo" 
+                  className="w-12 h-12 object-contain"
+                  variants={foxLogoVariants}
+                  whileHover={{ 
+                    scale: 1.2,
+                    rotate: 360,
+                    transition: { duration: 0.6 }
+                  }}
+                />
+                
+                {/* 🎨 DESKTOP TEXT LOGO - ALWAYS VISIBLE with cool scale animation */}
+                <motion.img 
+                  src={AevaTextLogo} 
+                  alt="Aeva" 
+                  className="h-8 object-contain ml-2"
+                  variants={textLogoVariants}
+                  whileHover={{ 
+                    scale: 1.1,
+                    transition: { duration: 0.2 }
+                  }}
+                />
+              </motion.div>
+            </div>
             
             <nav className="flex-1 px-4 pb-4">
               {navItems.map((item, index) => (
@@ -323,7 +286,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 >
                   <Link
                     to={item.path}
-                    className={`flex items-center space-x-3 p-3 my-1 rounded-xl transition-all duration-300 ${
+                    className={`flex items-center my-1 rounded-xl transition-all duration-300 ${
+                      isSidebarExpanded ? 'justify-start space-x-3 p-3' : 'justify-center p-3'
+                    } ${
                       location.pathname === item.path
                         ? 'bg-primary/10 text-primary border-l-4 border-primary'
                         : 'hover:bg-muted hover:scale-105'
@@ -358,9 +323,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </nav>
           </div>
         </motion.aside>
-
-        {/* 📱 MAIN CONTENT - Dynamically adjusts to sidebar state */}
-        <main className={`transition-all duration-400 ease-in-out w-full ${
+        
+        <main className={`transition-all duration-300 ease-in-out w-full ${
           isSidebarExpanded ? 'ml-64' : 'ml-20'
         }`}>
           {children}
