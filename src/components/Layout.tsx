@@ -149,7 +149,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 {/* 📏 TO CHANGE DESKTOP LOGO SIZE: 
                     - Container size: Change "w-16 h-16" below
                     - Image size: Change "w-14 h-14" below */}
-                <div className="w-17s h-17 flex items-center justify-center rounded-xl bg-primary/10">
+                <div className="w-20s h-20 flex items-center justify-center rounded-xl bg-primary/10">
                   <img 
                     src={AevaLogo} 
                     alt="Aeva Logo" 
