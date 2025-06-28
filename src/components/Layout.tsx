@@ -83,21 +83,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="flex items-center space-x-3">
           {/* 🎨 MOBILE ICON LOGO - Change AevaLogo import above to use a different small logo */}
           {/* 📏 TO CHANGE MOBILE LOGO SIZE: 
-              - Container size: Change "w-14 h-14" below
-              - Image size: Change "w-12 h-12" below */}
-          <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-primary/10">
+              - Container size: Change "w-16 h-16" below
+              - Image size: Change "w-14 h-14" below */}
+          <div className="w-16 h-16 flex items-center justify-center rounded-xl bg-primary/10">
             <img 
               src={AevaLogo} 
               alt="Aeva Logo" 
-              className="w-12 h-12 object-contain"
+              className="w-14 h-14 object-contain"
             />
           </div>
           {/* 🎨 MOBILE TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
-          {/* 📏 TO CHANGE MOBILE TEXT LOGO SIZE: Change "h-10" below */}
+          {/* 📏 TO CHANGE MOBILE TEXT LOGO SIZE: Change "h-12" below */}
           <img 
             src={AevaTextLogo} 
             alt="Aeva" 
-            className="h-10 object-contain"
+            className="h-12 object-contain"
           />
         </div>
         <div className="flex items-center space-x-2">
@@ -147,22 +147,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="flex items-center space-x-3">
                 {/* 🎨 DESKTOP ICON LOGO - Change AevaLogo import above to use a different small logo */}
                 {/* 📏 TO CHANGE DESKTOP LOGO SIZE: 
-                    - Container size: Change "w-20 h-20" below
-                    - Image size: Change "w-18 h-18" below */}
-                {/* 🐛 FIXED: Removed the typo "w-20s" → "w-20" */}
-                <div className="w-20 h-20 flex items-center justify-center rounded-xl bg-primary/10">
+                    - Container size: Change "w-24 h-24" below
+                    - Image size: Change "w-20 h-20" below */}
+                {/* 🐛 FIXED: Removed the typo "w-20s" → "w-24" and made it even bigger! */}
+                <div className="w-24 h-24 flex items-center justify-center rounded-xl bg-primary/10">
                   <img 
                     src={AevaLogo} 
                     alt="Aeva Logo" 
-                    className="w-18 h-18 object-contain"
+                    className="w-20 h-20 object-contain"
                   />
                 </div>
                 {/* 🎨 DESKTOP TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
-                {/* 📏 TO CHANGE DESKTOP TEXT LOGO SIZE: Change "h-12" below */}
+                {/* 📏 TO CHANGE DESKTOP TEXT LOGO SIZE: Change "h-14" below */}
                 <img 
                   src={AevaTextLogo} 
                   alt="Aeva" 
-                  className="h-12 object-contain"
+                  className="h-14 object-contain"
                 />
               </div>
             </div>
