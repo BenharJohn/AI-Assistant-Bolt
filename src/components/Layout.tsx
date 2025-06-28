@@ -10,7 +10,7 @@ import {
   Settings, 
   Menu, 
   X,
-  BookHeart,
+  Book,
   Bot
 } from 'lucide-react';
 import LiveVoiceShape from './LiveVoiceShape';
@@ -32,7 +32,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/tasks', label: 'Tasks', icon: <CheckSquare size={20} /> },
     { path: '/focus', label: 'Focus', icon: <Clock size={20} /> },
     { path: '/learning', label: 'Learning', icon: <BookOpen size={20} /> },
-    { path: '/journal', label: 'Journal', icon: <BookHeart size={20} /> },
+    { path: '/journal', label: 'Journal', icon: <Book size={20} /> },
     { path: '/companion', label: 'AI Companion', icon: <Bot size={20} /> },
     { path: '/settings', label: 'Settings', icon: <Settings size={20} /> },
   ];
@@ -41,7 +41,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const mobileNavItems = [
     { path: '/', label: 'Home', icon: <Home size={20} /> },
     { path: '/tasks', label: 'Tasks', icon: <CheckSquare size={20} /> },
-    { path: '/journal', label: 'Journal', icon: <BookHeart size={20} /> },
+    { path: '/journal', label: 'Journal', icon: <Book size={20} /> },
     { path: '/companion', label: 'AI', icon: <Bot size={20} /> },
   ];
 
