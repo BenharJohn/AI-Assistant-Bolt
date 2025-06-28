@@ -1,32 +1,49 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings as SettingsIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Settings as SettingsIcon, Wind, CloudRain, Coffee, Leaf, X } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+
+type SoundPlayer = 'noise' | 'rain' | 'coffee' | 'nature' | null;
+type GameStatus = 'idle' | 'showing' | 'playing' | 'lost';
+
+const soundSources = {
+  noise: 'https://www.soundgator.com/download.php?free=Zmszd2VOdjJsVmhqektVYzVoLzYrUT09&token=1454_bus-interior-ambience-01.mp3',
+  rain: 'https://www.soundgator.com/download.php?free=Q1BPN3lXUGp6Y2Rpd2UvRkM2ZHJSdz09&token=1432_rain-04.mp3',
+  coffee: 'https://www.soundgator.com/download.php?free=T3ZkK2hzUEcyNm9WRUV0NTN3dDlzZz09&token=2152_quiet-coffee-shop-01.mp3',
+  nature: 'https://www.soundgator.com/download.php?free=Z054eURJQkNkUlFKMUM4MWhMVlNpdz09&token=2080_forest-ambience-02.mp3',
+};
+const alarmSource = 'https://www.soundgator.com/download.php?free=YS9ZRWt5UE1CQ2g0MHRyMWdjaS9vZz09&token=1828_beep-short-01.mp3';
 
 const FocusMode: React.FC = () => {
   const [timerActive, setTimerActive] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [sessionType, setSessionType] = useState<'focus' | 'break'>('focus');
   const [focusLength, setFocusLength] = useState(25);
   const [breakLength, setBreakLength] = useState(5);
   const [sessionsCompleted, setSessionsCompleted] = useState(0);
-  const [soundOn, setSoundOn] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  
+  const [soundOn, setSoundOn] = useState(true);
+  const [activeSound, setActiveSound] = useState<SoundPlayer>(null);
+  const [gameSequence, setGameSequence] = useState<number[]>([]);
+  const [playerSequence, setPlayerSequence] = useState<number[]>([]);
+  const [gameStatus, setGameStatus] = useState<GameStatus>('idle');
+  const [activeButton, setActiveButton] = useState<number | null>(null);
+
   const { reducedMotion } = useSettings();
-  
+
   const timerRef = useRef<number | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const soundPlayers = useRef<{ [key: string]: HTMLAudioElement }>({});
+  const alarmSoundRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Initialize audio element
-    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-    audioRef.current.volume = 0.5;
-    
+    Object.entries(soundSources).forEach(([key, src]) => {
+      soundPlayers.current[key] = new Audio(src);
+      soundPlayers.current[key].loop = true;
+    });
+    alarmSoundRef.current = new Audio(alarmSource);
+
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      Object.values(soundPlayers.current).forEach(player => player.pause());
     };
   }, []);
 
@@ -36,13 +53,9 @@ const FocusMode: React.FC = () => {
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             clearInterval(timerRef.current!);
-            
-            // Play sound when timer ends
-            if (soundOn && audioRef.current) {
-              audioRef.current.play();
+            if (soundOn && alarmSoundRef.current) {
+              alarmSoundRef.current.play();
             }
-            
-            // Switch session type
             if (sessionType === 'focus') {
               setSessionsCompleted(prev => prev + 1);
               setSessionType('break');
@@ -51,291 +64,148 @@ const FocusMode: React.FC = () => {
               setSessionType('focus');
               setTimeLeft(focusLength * 60);
             }
-            
             setTimerActive(false);
             return 0;
           }
           return prevTime - 1;
         });
       }, 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
     }
-    
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [timerActive, sessionType, breakLength, focusLength, soundOn]);
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const stopAllSounds = () => {
+    Object.values(soundPlayers.current).forEach(player => {
+        player.pause();
+        player.currentTime = 0;
+    });
+    setActiveSound(null);
   };
 
-  const toggleTimer = () => {
-    setTimerActive(!timerActive);
+  const toggleSoundPlayer = (sound: SoundPlayer) => {
+    if (activeSound === sound) {
+      stopAllSounds();
+      return;
+    }
+    stopAllSounds();
+    if (sound) {
+      const player = soundPlayers.current[sound];
+      if (player) {
+        player.play();
+        setActiveSound(sound);
+      }
+    }
   };
 
-  const resetTimer = () => {
-    setTimerActive(false);
-    setTimeLeft(sessionType === 'focus' ? focusLength * 60 : breakLength * 60);
-  };
-
-  const toggleSound = () => {
-    setSoundOn(!soundOn);
-  };
-
-  const applySettings = () => {
-    setTimeLeft(sessionType === 'focus' ? focusLength * 60 : breakLength * 60);
-    setShowSettings(false);
-  };
-
-  const calculateProgress = (): number => {
-    const totalTime = sessionType === 'focus' ? focusLength * 60 : breakLength * 60;
-    return ((totalTime - timeLeft) / totalTime) * 100;
-  };
+  const startGame = () => { setGameSequence([]); setPlayerSequence([]); setGameStatus('showing'); };
+  useEffect(() => { if (gameStatus === 'showing') { const nextSequence = [...gameSequence, Math.floor(Math.random() * 4)]; setGameSequence(nextSequence); showSequence(nextSequence); } }, [gameStatus]);
+  const showSequence = (sequence: number[]) => { let i = 0; const interval = setInterval(() => { setActiveButton(sequence[i]); setTimeout(() => setActiveButton(null), 300); i++; if (i >= sequence.length) { clearInterval(interval); setGameStatus('playing'); } }, 600); };
+  const handlePlayerInput = (buttonIndex: number) => { if (gameStatus !== 'playing') return; const newPlayerSequence = [...playerSequence, buttonIndex]; setPlayerSequence(newPlayerSequence); if (newPlayerSequence[newPlayerSequence.length - 1] !== gameSequence[newPlayerSequence.length - 1]) { setGameStatus('lost'); setTimeout(() => setGameStatus('idle'), 1500); return; } if (newPlayerSequence.length === gameSequence.length) { setPlayerSequence([]); setTimeout(() => setGameStatus('showing'), 1000); } };
+  const formatTime = (seconds: number): string => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+  const toggleTimer = () => setTimerActive(!timerActive);
+  const resetTimer = () => { setTimerActive(false); setTimeLeft(focusLength * 60); setSessionType('focus'); };
+  const applySettings = () => { if (!timerActive) { setTimeLeft(focusLength * 60); setSessionType('focus'); } setShowSettings(false); };
+  const calculateProgress = (): number => { const totalTime = sessionType === 'focus' ? focusLength * 60 : breakLength * 60; if (totalTime === 0) return 0; return ((totalTime - timeLeft) / totalTime) * 100; };
+  const getSessionColor = () => sessionType === 'focus' ? 'stroke-primary' : 'stroke-secondary';
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Focus Mode</h1>
+    <div className="container mx-auto px-4 py-6 max-w-7xl text-foreground">
+      <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-bold text-foreground mb-6 text-center">
+        Focus Mode
+      </motion.h1>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Focus Timer */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {sessionType === 'focus' ? 'Focus Session' : 'Break Time'}
-            </h2>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 bg-card rounded-2xl shadow-warm p-8 border border-appBorder">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-card-foreground">{sessionType === 'focus' ? 'Focus Session' : 'Break Time'}</h2>
             <div className="flex space-x-2">
-              <button 
-                onClick={toggleSound}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 text-gray-500 dark:text-gray-400"
-              >
-                {soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
-              </button>
-              <button 
-                onClick={() => setShowSettings(true)}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 text-gray-500 dark:text-gray-400"
-              >
-                <SettingsIcon size={20} />
-              </button>
+              <button onClick={() => setSoundOn(!soundOn)} className="p-2 rounded-full hover:bg-muted/50 text-muted-foreground transition-colors"><Volume2 size={20} /></button>
+              <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:bg-muted/50 text-muted-foreground transition-colors"><SettingsIcon size={20} /></button>
             </div>
           </div>
-          
           <div className="flex flex-col items-center">
-            <div className="relative w-64 h-64 mb-6">
-              {/* Progress circle */}
+            <div className="relative w-64 h-64 mb-8">
               <svg className="w-full h-full" viewBox="0 0 100 100">
-                {/* Background circle */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke={sessionType === 'focus' ? '#e0e7ff' : '#fef3c7'}
-                  strokeWidth="8"
-                  className="dark:opacity-20"
-                />
-                {/* Progress circle */}
-                <motion.circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke={sessionType === 'focus' ? '#6366f1' : '#f59e0b'}
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray="282.7"
-                  strokeDashoffset={282.7 - (282.7 * calculateProgress()) / 100}
-                  transform="rotate(-90 50 50)"
-                  initial={{ strokeDashoffset: 282.7 }}
-                  animate={{ strokeDashoffset: 282.7 - (282.7 * calculateProgress()) / 100 }}
-                  transition={{ duration: reducedMotion ? 0 : 0.5 }}
-                />
-                
-                {/* Timer text */}
-                <text
-                  x="50"
-                  y="50"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="text-3xl font-bold fill-gray-900 dark:fill-white"
-                  style={{ fontSize: '16px' }}
-                >
-                  {formatTime(timeLeft)}
-                </text>
-                <text
-                  x="50"
-                  y="62"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="fill-gray-500 dark:fill-gray-400"
-                  style={{ fontSize: '8px' }}
-                >
-                  {sessionType === 'focus' ? 'FOCUS TIME' : 'BREAK TIME'}
-                </text>
+                <circle cx="50" cy="50" r="45" fill="none" className="stroke-muted/30" strokeWidth="10" />
+                <motion.circle cx="50" cy="50" r="45" fill="none" className={getSessionColor()} strokeWidth="10" strokeLinecap="round" strokeDasharray="282.7" transform="rotate(-90 50 50)" initial={{ strokeDashoffset: 282.7 }} animate={{ strokeDashoffset: 282.7 - (282.7 * calculateProgress()) / 100 }} transition={{ duration: reducedMotion ? 0 : 0.5 }} />
+                <text x="50" y="52" textAnchor="middle" dominantBaseline="middle" className="fill-foreground" style={{ fontSize: '28px', fontWeight: 'bold' }}>{formatTime(timeLeft)}</text>
+                <text x="50" y="68" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground" style={{ fontSize: '8px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{sessionType}</text>
               </svg>
             </div>
-            
             <div className="flex space-x-4">
-              <button
-                onClick={toggleTimer}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-200 ${
-                  timerActive
-                    ? 'bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-600 dark:text-red-300'
-                    : 'bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-600 dark:text-green-300'
-                }`}
-              >
-                {timerActive ? <Pause size={24} /> : <Play size={24} />}
-              </button>
-              <button
-                onClick={resetTimer}
-                className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 transition-colors duration-200"
-              >
-                <RotateCcw size={20} />
-              </button>
+              <button onClick={toggleTimer} className={`w-20 h-20 rounded-full flex items-center justify-center text-4xl text-primary-foreground shadow-lg transition-all duration-200 ${timerActive ? 'bg-secondary hover:bg-secondary-hover' : 'bg-primary hover:bg-primary-hover'}`}>{timerActive ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}</button>
+              <button onClick={resetTimer} className="w-20 h-20 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground shadow-lg transition-all"><RotateCcw size={28} /></button>
             </div>
-            
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Sessions completed today: <span className="font-medium">{sessionsCompleted}</span>
-              </p>
-            </div>
+            <p className="text-muted-foreground mt-8">Sessions completed: <span className="font-bold text-foreground">{sessionsCompleted}</span></p>
           </div>
         </div>
         
-        {/* Focus Techniques */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Focus Techniques</h2>
-          
-          <div className="space-y-4">
-            <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-              <h3 className="font-medium text-indigo-700 dark:text-indigo-300 mb-2">Pomodoro Technique</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Work for 25 minutes, then take a 5-minute break. After 4 cycles, take a longer 15-30 minute break.
-              </p>
-            </div>
-            
-            <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
-              <h3 className="font-medium text-purple-700 dark:text-purple-300 mb-2">2-Minute Rule</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                If a task takes less than 2 minutes, do it immediately instead of scheduling it for later.
-              </p>
-            </div>
-            
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-              <h3 className="font-medium text-blue-700 dark:text-blue-300 mb-2">Time Blocking</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Schedule specific blocks of time for different tasks to maintain focus and reduce context switching.
-              </p>
+        <div className="space-y-6">
+          <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+            <h2 className="text-lg font-semibold text-card-foreground mb-4">Ambient Sounds</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {([ { id: 'noise', label: 'White Noise', icon: Wind }, { id: 'rain', label: 'Rain', icon: CloudRain }, { id: 'coffee', label: 'Coffee Shop', icon: Coffee }, { id: 'nature', label: 'Nature', icon: Leaf } ] as const).map(({id, label, icon: Icon}) => (
+                <button key={id} onClick={() => toggleSoundPlayer(id)} className={`flex flex-col items-center justify-center p-3 rounded-xl transition-colors text-sm font-medium h-20 ${activeSound === id ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80 text-foreground'}`}><Icon className="w-6 h-6 mb-1" />{label}</button>
+              ))}
             </div>
           </div>
           
-          <div className="mt-6">
-            <h3 className="font-medium text-gray-900 dark:text-white mb-3">Ambient Sounds</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
-                White Noise
-              </button>
-              <button className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
-                Rain Sounds
-              </button>
-              <button className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
-                Coffee Shop
-              </button>
-              <button className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
-                Nature Sounds
-              </button>
-            </div>
+          <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+            <AnimatePresence mode="wait">
+              <motion.div key={sessionType} initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}>
+                {sessionType === 'focus' ? (
+                   <div>
+                     <h2 className="text-lg font-semibold text-card-foreground mb-2">Focus Tip</h2>
+                     <p className="text-sm text-muted-foreground">Stay on track. The Pomodoro Technique suggests focused 25-minute intervals. You can do this!</p>
+                   </div>
+                ) : (
+                   <div>
+                     <h2 className="text-lg font-semibold text-card-foreground mb-2">Pattern Recall</h2>
+                     <p className="text-sm text-muted-foreground mb-4">It's break time! Sharpen your mind by repeating the sequence.</p>
+                     <div className="grid grid-cols-2 gap-2 h-40">
+                      {[0, 1, 2, 3].map(i => (
+                        <button key={i} onClick={() => handlePlayerInput(i)} className={`w-full h-full rounded-lg transition-all duration-150 ${activeButton === i ? 'bg-secondary scale-105' : 'bg-muted hover:bg-muted/80'}`}/>
+                      ))}
+                     </div>
+                     <div className="text-center mt-4 h-6">
+                       {gameStatus === 'idle' && <button onClick={startGame} className="btn-secondary py-2 px-4 text-sm">Start Game</button>}
+                       {gameStatus === 'showing' && <p className="text-sm text-muted-foreground animate-pulse">Watch carefully...</p>}
+                       {gameStatus === 'playing' && <p className="text-sm text-muted-foreground">Your turn!</p>}
+                       {gameStatus === 'lost' && <p className="text-sm text-red-500 font-bold">Try again!</p>}
+                     </div>
+                   </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
-      </div>
+      </motion.div>
       
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: reducedMotion ? 0 : 0.2 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4"
-          >
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Timer Settings</h3>
-                <button 
-                  onClick={() => setShowSettings(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <RotateCcw size={20} />
-                </button>
-              </div>
-              
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
+            <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -30, opacity: 0 }} className="bg-card rounded-2xl shadow-xl max-w-sm w-full p-6 border border-appBorder" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold text-card-foreground">Timer Settings</h3>
+                    <button onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>
+                </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Focus Session Length (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="60"
-                    value={focusLength}
-                    onChange={(e) => setFocusLength(Math.max(1, Math.min(60, parseInt(e.target.value || '25'))))}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
-                  />
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Focus Length (minutes)</label>
+                  <input type="number" min="1" max="60" value={focusLength} onChange={(e) => setFocusLength(Number(e.target.value))} className="w-full bg-background border border-appBorder rounded-xl p-2 text-foreground focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
                 </div>
-                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Break Length (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="30"
-                    value={breakLength}
-                    onChange={(e) => setBreakLength(Math.max(1, Math.min(30, parseInt(e.target.value || '5'))))}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="sound-toggle"
-                    checked={soundOn}
-                    onChange={toggleSound}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="sound-toggle" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    Play sound when timer ends
-                  </label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1">Break Length (minutes)</label>
+                  <input type="number" min="1" max="30" value={breakLength} onChange={(e) => setBreakLength(Number(e.target.value))} className="w-full bg-background border border-appBorder rounded-xl p-2 text-foreground focus:ring-2 focus:ring-primary/50 focus:outline-none"/>
                 </div>
               </div>
-              
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={applySettings}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200"
-                >
-                  Apply
-                </button>
+              <div className="mt-6 flex justify-end">
+                <button onClick={applySettings} className="btn-primary">Apply Settings</button>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 };

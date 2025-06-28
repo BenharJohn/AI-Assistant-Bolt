@@ -1,285 +1,188 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
-  Book, 
   FileText, 
-  Highlighter, 
-  VolumeX, 
-  Volume2, 
-  Bookmark,
-  Loader
+  BrainCircuit,
+  Loader,
+  Copy,
+  Check
 } from 'lucide-react';
-import { useAI } from '../context/AIContext';
+import { useAI, Flashcard } from '../context/AIContext';
 import { useSettings } from '../context/SettingsContext';
 
 const LearningTools: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'explain' | 'summarize'>('explain');
-  const [content, setContent] = useState('');
+  const [inputText, setInputText] = useState('');
   const [result, setResult] = useState<string | null>(null);
-  const [isReading, setIsReading] = useState(false);
-  const { isProcessing, explainConcept, summarizeContent } = useAI();
+  const [flashcards, setFlashcards] = useState<Flashcard[] | null>(null);
+  const [isFlipped, setIsFlipped] = useState<boolean[]>([]);
+  const [hasCopied, setHasCopied] = useState(false);
+
+  const { isProcessing, getAIResponse, generateFlashcards } = useAI();
   const { reducedMotion } = useSettings();
   
-  const handleSearch = async () => {
-    if (!searchTerm.trim() || isProcessing) return;
-    
-    try {
-      const explanation = await explainConcept(searchTerm);
-      setResult(explanation);
-    } catch (error) {
-      setResult('Sorry, I encountered an error processing your request.');
-    }
-  };
-  
-  const handleSummarize = async () => {
-    if (!content.trim() || isProcessing) return;
-    
-    try {
-      const summary = await summarizeContent(content);
-      setResult(summary);
-    } catch (error) {
-      setResult('Sorry, I encountered an error processing your request.');
-    }
-  };
-  
-  const toggleReading = () => {
-    setIsReading(!isReading);
-    // In a real app, this would start/stop text-to-speech
-  };
-  
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeTab === 'explain') {
-      handleSearch();
-    } else {
-      handleSummarize();
-    }
+    if (!inputText.trim() || isProcessing) return;
+    
+    setResult(null); // Clear previous results
+    setFlashcards(null);
+
+    const prompt = activeTab === 'explain' 
+        ? `Explain the following concept in a clear and simple way`
+        : `Summarize the following text into key bullet points`;
+    
+    const response = await getAIResponse(prompt, inputText);
+    setResult(response);
   };
-  
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        when: "beforeChildren",
-        staggerChildren: reducedMotion ? 0 : 0.1
-      }
+
+  const handleGenerateFlashcards = async () => {
+    if(!result || isProcessing) return;
+    const cards = await generateFlashcards(result);
+    if (cards) {
+        setFlashcards(cards);
+        setIsFlipped(new Array(cards.length).fill(false));
     }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: reducedMotion ? 0 : 0.3 }
-    }
+  const handleFlipCard = (index: number) => {
+    setIsFlipped(prev => {
+        const newFlipped = [...prev];
+        newFlipped[index] = !newFlipped[index];
+        return newFlipped;
+    });
   };
+
+  const handleCopyToClipboard = () => {
+    if (!result) return;
+    navigator.clipboard.writeText(result);
+    setHasCopied(true);
+    setTimeout(() => setHasCopied(false), 2000);
+  };
+  
+  const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <motion.div variants={itemVariants} className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Learning Tools</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Get help understanding concepts and summarizing content
-          </p>
+      <motion.div variants={containerVariants} initial="hidden" animate="visible">
+        <motion.div variants={itemVariants} className="mb-6 text-center">
+          <h1 className="text-3xl font-bold text-foreground">Learning Tools</h1>
+          <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">Your AI-powered study partner. Explain complex topics, summarize articles, and create flashcards to reinforce your learning.</p>
         </motion.div>
         
-        <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700 mb-6">
-          <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
-            <button
-              onClick={() => {
-                setActiveTab('explain');
-                setResult(null);
-              }}
-              className={`py-3 px-4 font-medium text-sm border-b-2 ${
-                activeTab === 'explain'
-                  ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Explain Concepts
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('summarize');
-                setResult(null);
-              }}
-              className={`py-3 px-4 font-medium text-sm border-b-2 ${
-                activeTab === 'summarize'
-                  ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Summarize Content
-            </button>
+        <motion.div variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder mb-6">
+          <div className="flex border-b border-appBorder mb-6">
+            {(['explain', 'summarize'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => { setActiveTab(tab); setResult(null); setFlashcards(null); setInputText(''); }}
+                className={`py-3 px-4 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tab === 'explain' ? 'Explain a Concept' : 'Summarize Text'}
+              </button>
+            ))}
           </div>
           
           <form onSubmit={handleSubmit}>
             {activeTab === 'explain' ? (
-              <div className="mb-6">
-                <label htmlFor="concept\" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Enter a concept you'd like explained
-                </label>
+              <div>
+                <label htmlFor="concept" className="block text-sm font-medium text-foreground mb-2">Enter a concept you'd like explained</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search size={18} className="text-gray-400" />
+                    <Search size={18} className="text-muted-foreground" />
                   </div>
-                  <input
-                    type="text"
-                    id="concept"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="e.g. ADHD, dyslexia, executive functioning"
-                    className="pl-10 pr-4 py-3 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
-                  />
+                  <input type="text" id="concept" value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="e.g., Photosynthesis, The Cold War..." className="pl-10 pr-4 py-3 w-full bg-background border border-appBorder rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground" />
                 </div>
               </div>
             ) : (
-              <div className="mb-6">
-                <label htmlFor="content" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Paste content you'd like summarized
-                </label>
-                <textarea
-                  id="content"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Paste text content here..."
-                  rows={6}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
-                />
+              <div>
+                <label htmlFor="content" className="block text-sm font-medium text-foreground mb-2">Paste content you'd like summarized</label>
+                <textarea id="content" value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Paste an article or text here..." rows={8} className="w-full bg-background border border-appBorder rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none" />
               </div>
             )}
             
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={isProcessing || (activeTab === 'explain' ? !searchTerm.trim() : !content.trim())}
-                className={`px-4 py-2 rounded-lg flex items-center ${
-                  isProcessing || (activeTab === 'explain' ? !searchTerm.trim() : !content.trim())
-                    ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white transition-colors duration-200'
-                }`}
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader size={18} className="mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    {activeTab === 'explain' ? 'Explain' : 'Summarize'}
-                  </>
-                )}
+            <div className="flex justify-end mt-4">
+              <button type="submit" disabled={isProcessing || !inputText.trim()} className="btn-primary flex items-center disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed">
+                {isProcessing ? <><Loader size={18} className="mr-2 animate-spin" />Processing...</> : 'Submit'}
               </button>
             </div>
           </form>
         </motion.div>
         
+        <AnimatePresence>
+        {(isProcessing && !result) && (
+            <motion.div variants={itemVariants} className="text-center text-muted-foreground">
+                <p>Thinking...</p>
+            </motion.div>
+        )}
         {result && (
-          <motion.div
-            variants={itemVariants}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700"
-          >
+          <motion.div variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {activeTab === 'explain' ? 'Explanation' : 'Summary'}
-              </h2>
-              <div className="flex space-x-2">
-                <button 
-                  onClick={toggleReading}
-                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                >
-                  {isReading ? (
-                    <VolumeX size={20} className="text-gray-500 dark:text-gray-400" />
-                  ) : (
-                    <Volume2 size={20} className="text-gray-500 dark:text-gray-400" />
-                  )}
-                </button>
-                <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
-                  <Bookmark size={20} className="text-gray-500 dark:text-gray-400" />
-                </button>
+              <h2 className="text-lg font-semibold text-card-foreground">{activeTab === 'explain' ? 'Explanation' : 'Summary'}</h2>
+              <div className="flex items-center gap-2">
+                 <button onClick={handleGenerateFlashcards} disabled={isProcessing} className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary-hover disabled:text-muted-foreground disabled:cursor-not-allowed">
+                    <BrainCircuit size={16}/> Create Flashcards
+                 </button>
+                 <button onClick={handleCopyToClipboard} className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+                    {hasCopied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                 </button>
               </div>
             </div>
-            
-            <div className="prose dark:prose-invert max-w-none">
+            <div className="prose prose-p:text-foreground prose-strong:text-foreground prose-headings:text-foreground max-w-none">
               <p className="whitespace-pre-line">{result}</p>
-            </div>
-            
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full text-sm">
-                Save to Notes
-              </button>
-              <button className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm">
-                Copy Text
-              </button>
-              <button className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm">
-                Share
-              </button>
             </div>
           </motion.div>
         )}
-        
-        <motion.div variants={itemVariants} className="mt-8">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Learning Resources</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center mb-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-full mr-3">
-                  <Book size={18} className="text-purple-600 dark:text-purple-400" />
+        </AnimatePresence>
+
+        <AnimatePresence>
+        {flashcards && flashcards.length > 0 && (
+             <motion.div variants={itemVariants} className="mt-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4 text-center">Your Flashcards</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {flashcards.map((card, index) => (
+                         <motion.div
+                            key={index}
+                            onClick={() => handleFlipCard(index)}
+                            className="h-48 rounded-2xl cursor-pointer"
+                            transition={{ duration: 0.5 }}
+                            animate={{ rotateY: isFlipped[index] ? 180 : 0 }}
+                            style={{ transformStyle: 'preserve-3d' }}
+                         >
+                            {/* Front of Card */}
+                            <div className="absolute w-full h-full bg-muted rounded-2xl p-4 flex items-center justify-center text-center backface-hidden">
+                                <p className="font-semibold text-foreground">{card.question}</p>
+                            </div>
+                            {/* Back of Card */}
+                            <div className="absolute w-full h-full bg-secondary rounded-2xl p-4 flex items-center justify-center text-center backface-hidden" style={{transform: 'rotateY(180deg)'}}>
+                                <p className="text-sm text-secondary-foreground">{card.answer}</p>
+                            </div>
+                         </motion.div>
+                    ))}
                 </div>
-                <h3 className="font-medium text-gray-900 dark:text-white">Reading Strategies</h3>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                Learn effective techniques for improving reading comprehension and focus.
-              </p>
-              <button className="text-purple-600 dark:text-purple-400 text-sm font-medium">
-                View Resource →
-              </button>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center mb-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full mr-3">
-                  <FileText size={18} className="text-blue-600 dark:text-blue-400" />
-                </div>
-                <h3 className="font-medium text-gray-900 dark:text-white">Note-Taking Methods</h3>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                Discover note-taking systems that work well for ADHD and dyslexic minds.
-              </p>
-              <button className="text-blue-600 dark:text-blue-400 text-sm font-medium">
-                View Resource →
-              </button>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center mb-3">
-                <div className="p-2 bg-green-100 dark:bg-green-900 rounded-full mr-3">
-                  <Highlighter size={18} className="text-green-600 dark:text-green-400" />
-                </div>
-                <h3 className="font-medium text-gray-900 dark:text-white">Study Techniques</h3>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                Explore study methods that enhance retention and reduce overwhelm.
-              </p>
-              <button className="text-green-600 dark:text-green-400 text-sm font-medium">
-                View Resource →
-              </button>
-            </div>
-          </div>
-        </motion.div>
+            </motion.div>
+        )}
+        </AnimatePresence>
+
       </motion.div>
     </div>
   );
 };
+
+// Add this CSS to your global index.css file to make the card flip work
+/*
+@layer utilities {
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+}
+*/
 
 export default LearningTools;

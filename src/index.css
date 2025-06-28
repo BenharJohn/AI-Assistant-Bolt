@@ -52,6 +52,16 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-medium tracking-tight text-foreground;
   }
+
+  /* Custom slider styling for settings */
+  .slider::-webkit-slider-thumb {
+    @apply appearance-none w-5 h-5 rounded-full bg-white shadow-lg cursor-pointer border-2 border-primary;
+  }
+
+  .slider::-moz-range-thumb {
+    @apply w-5 h-5 rounded-full bg-white shadow-lg cursor-pointer border-2 border-primary;
+    border: 2px solid hsl(12, 53%, 66%);
+  }
 }
 
 @layer components {

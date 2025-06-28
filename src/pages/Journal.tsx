@@ -2,11 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Volume2, VolumeX, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { supabase } from '../supabaseClient'; // <--- 1. IMPORT THE SUPABASE CLIENT
+
+// Define the type for our journal entries for clarity
+type JournalEntry = {
+  type: 'user' | 'ai';
+  content: string;
+};
 
 const Journal: React.FC = () => {
-  const [entries, setEntries] = useState<Array<{ type: 'user' | 'ai'; content: string }>>([
-    { type: 'ai', content: '⟡ Welcome to your safe space. How are you feeling today?' }
-  ]);
+  const [entries, setEntries] = useState<Array<JournalEntry>>([]); // Start with an empty array
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -14,6 +19,37 @@ const Journal: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { reducedMotion } = useSettings();
 
+  // --- vvv 2. NEW: FETCH ENTRIES ON LOAD vvv ---
+  useEffect(() => {
+    const fetchEntries = async () => {
+      // Fetch all entries from the 'journal_entries' table, ordered by creation time
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('role, content')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching journal entries:', error);
+        // If fetching fails, still provide the welcome message.
+        setEntries([{ type: 'ai', content: '⟡ Welcome! I couldn\'t load our past conversation, but we can start fresh.' }]);
+      } else if (data && data.length > 0) {
+        // We need to cast the role to fit our JournalEntry type
+        const formattedEntries = data.map(entry => ({
+          type: entry.role as 'user' | 'ai',
+          content: entry.content
+        }));
+        setEntries(formattedEntries);
+      } else {
+        // If there are no entries in the database, add the initial welcome message
+        setEntries([{ type: 'ai', content: '⟡ Welcome to your safe space. How are you feeling today?' }]);
+      }
+    };
+
+    fetchEntries();
+  }, []); // The empty array [] means this effect runs only once when the component mounts
+
+
+  // Scroll to bottom effect remains the same
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: reducedMotion ? 'auto' : 'smooth'
@@ -24,11 +60,10 @@ const Journal: React.FC = () => {
     scrollToBottom();
   }, [entries, reducedMotion]);
 
+  // toggleListening remains the same
   const toggleListening = () => {
     setIsListening(!isListening);
-    // For a real app, you'd integrate SpeechRecognition API here
     if (!isListening) {
-      // Simulate voice input after a delay
       setTimeout(() => {
         setInput("I'm feeling a bit overwhelmed with all my tasks today");
         setIsListening(false);
@@ -36,32 +71,80 @@ const Journal: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+
+
+
+
+// --- vvv THIS IS THE ONLY FUNCTION THAT CHANGES vvv ---
+const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim() || isProcessing) return;
 
-    const userEntry = input.trim();
-    setEntries(prev => [...prev, { type: 'user', content: userEntry }]);
+    const userEntryContent = input.trim();
+    const userEntry: JournalEntry = { type: 'user', content: userEntryContent };
+
+    // --- NEW: Get the last 5 entries from the current state to send as history ---
+    const recentHistory = entries.slice(-5);
+
+    // Optimistically update UI
+    setEntries(prev => [...prev, userEntry]);
     setInput('');
     setIsProcessing(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponses = [
-        "⟡ I hear that you're feeling overwhelmed. Let's break this down together. What's the most pressing task on your mind?",
-        "⟡ It's perfectly normal to feel this way. Would you like to try a quick breathing exercise to help center yourself?",
-        "⟡ I'm here to listen. Could you tell me more about what's contributing to these feelings?",
-      ];
-      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
-      setEntries(prev => [...prev, { type: 'ai', content: randomResponse }]);
+    try {
+      // --- MODIFIED: Send both the new message AND the recent history ---
+      const response = await fetch('/api/ask-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: userEntryContent,
+          history: recentHistory,
+          mode: 'journal'
+        }),
+      });
+
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const data = await response.json();
+      const aiResponseContent = data.reply || "I'm having trouble thinking right now.";
+      const aiEntry: JournalEntry = { type: 'ai', content: aiResponseContent };
+      
+      setEntries(prev => [...prev, aiEntry]);
+
+      // The logic to save to Supabase remains the same and is still correct.
+      const { error: insertError } = await supabase.from('journal_entries').insert([
+        { role: 'user', content: userEntryContent },
+        { role: 'ai', content: aiResponseContent }
+      ]);
+
+      if (insertError) {
+        console.error('Error saving entries to Supabase:', insertError);
+      }
+
+    } catch (error) {
+      console.error("Failed to fetch AI response:", error);
+      const errorEntry: JournalEntry = { type: 'ai', content: "⟡ I'm sorry, I'm having a little trouble connecting." };
+      setEntries(prev => [...prev, errorEntry]);
+    } finally {
       setIsProcessing(false);
-    }, 1500);
+    }
   };
 
+
+
+
+
+
+
+
+
+
+  
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
 
+  // The rest of your JSX remains the same as your previously themed version
   return (
     <div className={`container mx-auto px-4 py-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       <div className="max-w-2xl mx-auto">
@@ -78,14 +161,14 @@ const Journal: React.FC = () => {
 
         <div
           className={`bg-card rounded-2xl border border-appBorder overflow-hidden shadow-warm
-            ${isFullscreen ? 'h-[calc(100vh-8rem)]' : 'h-[600px]'}`} // Using themed shadow
+            ${isFullscreen ? 'h-[calc(100vh-8rem)]' : 'h-[600px]'}`}
         >
           <div className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <AnimatePresence mode="popLayout">
                 {entries.map((entry, index) => (
                   <motion.div
-                    key={index}
+                    key={index} // Using index is okay for a simple append-only list
                     initial={{ opacity: 0, y: reducedMotion ? 0 : 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: reducedMotion ? 0 : -20 }}
@@ -93,10 +176,10 @@ const Journal: React.FC = () => {
                     className={`max-w-[85%] ${entry.type === 'user' ? 'ml-auto text-right' : ''}`}
                   >
                     <div
-                      className={`inline-block text-left font-serif text-lg rounded-xl px-3 py-2 ${ // Added some padding and rounding to entries
+                      className={`inline-block text-left font-serif text-lg rounded-xl px-3 py-2 ${
                         entry.type === 'user'
-                          ? 'bg-primary/10 text-foreground' // User entries with a light primary tint
-                          : 'text-muted-foreground pl-1' // AI entries are more muted, adjusted padding
+                          ? 'bg-primary/10 text-foreground'
+                          : 'text-muted-foreground pl-1'
                       }`}
                     >
                       {entry.content.startsWith('⟡') && <span className="text-primary mr-1.5">{entry.content[0]}</span>}
@@ -109,9 +192,9 @@ const Journal: React.FC = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="flex items-center space-x-2 text-muted-foreground pl-1" // Adjusted padding
+                    className="flex items-center space-x-2 text-muted-foreground pl-1"
                   >
-                    <Sparkles className="w-4 h-4 animate-pulse text-primary" /> {/* Themed Sparkle */}
+                    <Sparkles className="w-4 h-4 animate-pulse text-primary" />
                     <span className="text-sm font-serif">Reflecting...</span>
                   </motion.div>
                 )}
@@ -119,7 +202,7 @@ const Journal: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 border-t border-appBorder bg-background/80 backdrop-blur-sm"> {/* Themed border and bg */}
+            <div className="p-4 border-t border-appBorder bg-background/80 backdrop-blur-sm">
               <form onSubmit={handleSubmit} className="flex items-end space-x-3">
                 <button
                   type="button"
@@ -127,7 +210,7 @@ const Journal: React.FC = () => {
                   aria-label={isListening ? "Stop listening" : "Start listening"}
                   className={`p-3 rounded-xl transition-colors duration-200 ${
                     isListening
-                      ? 'bg-primary/80 text-primary-foreground' // Themed active listening state
+                      ? 'bg-primary/80 text-primary-foreground'
                       : 'text-muted-foreground hover:bg-muted/60'
                   }`}
                 >
@@ -139,7 +222,7 @@ const Journal: React.FC = () => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="What's on your mind?"
-                    className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground" // Themed text and placeholder
+                    className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground"
                   />
                 </div>
                 <button
@@ -148,8 +231,8 @@ const Journal: React.FC = () => {
                   aria-label="Send message"
                   className={`p-3 rounded-xl transition-colors duration-200 ${
                     !input.trim() || isProcessing
-                      ? 'text-muted-foreground/50 cursor-not-allowed' // More muted for disabled
-                      : 'text-primary hover:bg-primary/10' // Themed enabled state
+                      ? 'text-muted-foreground/50 cursor-not-allowed'
+                      : 'text-primary hover:bg-primary/10'
                   }`}
                 >
                   <Mic size={20} />

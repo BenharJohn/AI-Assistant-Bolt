@@ -1,309 +1,268 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X } from 'lucide-react';
-import Plan from '../components/ui/agent-plan';
 import { useSettings } from '../context/SettingsContext';
+import { useTask, Task } from '../context/TaskContext';
+import TaskCard from '../components/TaskCard';
+
+// A reusable Modal Component for both Add and Edit forms
+const FormModal: React.FC<{
+  title: string;
+  onClose: () => void;
+  onSave: (e: React.FormEvent) => void;
+  children: React.ReactNode;
+}> = ({ title, onClose, onSave, children }) => {
+  const { reducedMotion } = useSettings();
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ duration: reducedMotion ? 0.1 : 0.2 }}
+        className="bg-card rounded-2xl shadow-warm border border-appBorder p-6 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-card-foreground">{title}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X size={20} />
+          </button>
+        </div>
+        <form onSubmit={onSave} className="space-y-4">
+          {children}
+          <div className="flex justify-end space-x-3 pt-4">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-muted-foreground hover:text-foreground font-medium">
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary">
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 
 const TaskManager: React.FC = () => {
   const { reducedMotion } = useSettings();
+  const { state: taskState, addTask, updateTask } = useTask();
+  
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskDescription, setNewTaskDescription] = useState('');
-  const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initial tasks - this will be passed to Plan component
-  const [tasks, setTasks] = useState([
-    {
-      id: "1",
-      title: "Complete History Essay",
-      description: "Write a 5-page essay on the Industrial Revolution",
-      status: "in-progress",
-      priority: "high",
-      level: 0,
-      dependencies: [],
-      subtasks: [
-        {
-          id: "1.1",
-          title: "Research Key Topics",
-          description: "Gather information about major inventions and social changes",
-          status: "completed",
-          priority: "high",
-          tools: ["browser", "note-taking"]
-        },
-        {
-          id: "1.2",
-          title: "Create Essay Outline",
-          description: "Organize main points and supporting evidence",
-          status: "in-progress",
-          priority: "high",
-          tools: ["outline-generator", "mind-map"]
-        },
-        {
-          id: "1.3",
-          title: "Write First Draft",
-          description: "Complete initial draft focusing on content over perfection",
-          status: "pending",
-          priority: "medium",
-          tools: ["text-editor", "focus-timer"]
-        },
-        {
-          id: "1.4",
-          title: "Review and Edit",
-          description: "Check for clarity, flow, and historical accuracy",
-          status: "pending",
-          priority: "medium",
-          tools: ["grammar-check", "text-to-speech"]
-        }
-      ]
-    },
-    {
-      id: "2",
-      title: "Math Exam Preparation",
-      description: "Study for upcoming calculus exam covering derivatives and integrals",
-      status: "need-help",
-      priority: "high",
-      level: 0,
-      dependencies: [],
-      subtasks: [
-        {
-          id: "2.1",
-          title: "Review Class Notes",
-          description: "Organize and summarize notes from previous lectures",
-          status: "in-progress",
-          priority: "high",
-          tools: ["note-organizer", "math-formatter"]
-        },
-        {
-          id: "2.2",
-          title: "Practice Problems",
-          description: "Complete practice exercises from textbook",
-          status: "need-help",
-          priority: "high",
-          tools: ["calculator", "step-solver"]
-        },
-        {
-          id: "2.3",
-          title: "Watch Tutorial Videos",
-          description: "Find and watch explanatory videos for difficult concepts",
-          status: "pending",
-          priority: "medium",
-          tools: ["video-player", "note-taking"]
-        }
-      ]
-    },
-    {
-      id: "3",
-      title: "Daily Reading Assignment",
-      description: "Read and comprehend Chapter 5 of 'To Kill a Mockingbird'",
-      status: "in-progress",
-      priority: "medium",
-      level: 0,
-      dependencies: [],
-      subtasks: [
-        {
-          id: "3.1",
-          title: "Pre-reading Overview",
-          description: "Review chapter summary and key themes",
-          status: "completed",
-          priority: "medium",
-          tools: ["text-summarizer", "concept-map"]
-        },
-        {
-          id: "3.2",
-          title: "Active Reading",
-          description: "Read chapter with text-to-speech assistance",
-          status: "in-progress",
-          priority: "high",
-          tools: ["text-to-speech", "reading-guide"]
-        },
-        {
-          id: "3.3",
-          title: "Comprehension Check",
-          description: "Answer chapter questions and identify main ideas",
-          status: "pending",
-          priority: "medium",
-          tools: ["quiz-generator", "note-taking"]
-        }
-      ]
-    }
-  ]);
+  // Use a single state to manage form inputs for both Add and Edit
+  const [formState, setFormState] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as 'low' | 'medium' | 'high',
+    due_date: '',
+  });
 
-  const handleAddTask = (e: React.FormEvent) => {
+  // When a user clicks the "Edit" button on a TaskCard, this function is called.
+  const handleOpenEditModal = (task: Task) => {
+    setEditingTask(task);
+    // Pre-fill the form with the existing task's data
+    setFormState({
+      title: task.title,
+      description: task.description || '',
+      priority: task.priority,
+      due_date: task.due_date ? task.due_date.split('T')[0] : '', // Format for HTML date input
+    });
+  };
+
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskTitle.trim()) return;
-
-    const newTask = {
-      id: Date.now().toString(),
-      title: newTaskTitle,
-      description: newTaskDescription,
-      status: "pending",
-      priority: newTaskPriority,
-      level: 0,
-      dependencies: [],
-      subtasks: [
-        {
-          id: `${Date.now()}.1`,
-          title: "Break down into steps",
-          description: "Identify the main components of this task",
-          status: "pending",
-          priority: newTaskPriority,
-          tools: ["task-planner", "mind-map"]
-        }
-      ]
-    };
-
-    setTasks(prev => [...prev, newTask]);
-    setNewTaskTitle('');
-    setNewTaskDescription('');
-    setNewTaskPriority('medium');
-    setShowAddForm(false);
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        when: "beforeChildren",
-        staggerChildren: reducedMotion ? 0 : 0.1
-      }
+    if (!formState.title.trim() || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      console.log('Adding task with data:', { ...formState, status: 'pending' });
+      await addTask({ 
+        title: formState.title.trim(),
+        description: formState.description.trim() || null,
+        priority: formState.priority,
+        due_date: formState.due_date || null,
+        status: 'pending'
+      });
+      
+      // Reset form and close modal
+      setFormState({ title: '', description: '', priority: 'medium', due_date: '' });
+      setShowAddForm(false);
+      console.log('Task added successfully');
+    } catch (error) {
+      console.error('Error adding task:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: reducedMotion ? 0 : 0.3 }
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      await updateTask(editingTask.id, {
+        title: formState.title.trim(),
+        description: formState.description.trim() || null,
+        priority: formState.priority,
+        due_date: formState.due_date || null,
+      });
+      setEditingTask(null);
+    } catch (error) {
+      console.error('Error updating task:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground">
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div variants={containerVariants} initial="hidden" animate="visible">
         <motion.div variants={itemVariants} className="mb-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-foreground">Task Manager</h1>
-              <p className="text-muted-foreground mt-2">
-                Manage your tasks and track progress with AI-powered planning
-              </p>
+              <p className="text-muted-foreground mt-2">Manage your projects and track progress with your AI assistant.</p>
             </div>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center space-x-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors duration-200 shadow-soft"
+            <button 
+              onClick={() => { 
+                setFormState({ title: '', description: '', priority: 'medium', due_date: '' }); 
+                setShowAddForm(true); 
+              }} 
+              className="btn-primary flex items-center space-x-2"
+              disabled={isSubmitting}
             >
               <Plus size={16} />
-              <span>Add Task</span>
+              <span>{isSubmitting ? 'Adding...' : 'Add Task'}</span>
             </button>
           </div>
         </motion.div>
 
-        {/* Add Task Form Modal */}
         <AnimatePresence>
           {showAddForm && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-              onClick={() => setShowAddForm(false)}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                transition={{ duration: reducedMotion ? 0.1 : 0.2 }}
-                className="bg-card rounded-2xl shadow-warm border border-appBorder p-6 w-full max-w-md"
-                onClick={(e) => e.stopPropagation()}
+            <FormModal title="Add New Task" onClose={() => setShowAddForm(false)} onSave={handleAddTask}>
+              <label className="block text-sm font-medium text-card-foreground mb-1">Title *</label>
+              <input 
+                type="text" 
+                value={formState.title} 
+                onChange={(e) => setFormState({...formState, title: e.target.value})} 
+                placeholder="Enter task title..." 
+                required 
+                disabled={isSubmitting}
+                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+              />
+              
+              <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Description</label>
+              <textarea 
+                value={formState.description} 
+                onChange={(e) => setFormState({...formState, description: e.target.value})} 
+                placeholder="Description..." 
+                rows={3} 
+                disabled={isSubmitting}
+                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none disabled:opacity-50" 
+              />
+              
+              <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Priority</label>
+              <select 
+                value={formState.priority} 
+                onChange={(e) => setFormState({...formState, priority: e.target.value as any})} 
+                disabled={isSubmitting}
+                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50"
               >
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold text-card-foreground">Add New Task</h2>
-                  <button
-                    onClick={() => setShowAddForm(false)}
-                    className="text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-
-                <form onSubmit={handleAddTask} className="space-y-4">
-                  <div>
-                    <label htmlFor="title" className="block text-sm font-medium text-card-foreground mb-1">
-                      Task Title
-                    </label>
-                    <input
-                      type="text"
-                      id="title"
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      placeholder="Enter task title..."
-                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="description" className="block text-sm font-medium text-card-foreground mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      id="description"
-                      value={newTaskDescription}
-                      onChange={(e) => setNewTaskDescription(e.target.value)}
-                      placeholder="Enter task description..."
-                      rows={3}
-                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200 resize-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="priority" className="block text-sm font-medium text-card-foreground mb-1">
-                      Priority
-                    </label>
-                    <select
-                      id="priority"
-                      value={newTaskPriority}
-                      onChange={(e) => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
-                      className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                  </div>
-
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors duration-200"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors duration-200 shadow-soft"
-                    >
-                      Add Task
-                    </button>
-                  </div>
-                </form>
-              </motion.div>
-            </motion.div>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+              
+              <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Due Date</label>
+              <input 
+                type="date" 
+                value={formState.due_date} 
+                onChange={(e) => setFormState({...formState, due_date: e.target.value})} 
+                disabled={isSubmitting}
+                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+              />
+            </FormModal>
+          )}
+          {editingTask && (
+             <FormModal title="Edit Task" onClose={() => setEditingTask(null)} onSave={handleUpdateTask}>
+                <label className="block text-sm font-medium text-card-foreground mb-1">Title *</label>
+                <input 
+                  type="text" 
+                  value={formState.title} 
+                  onChange={(e) => setFormState({...formState, title: e.target.value})} 
+                  placeholder="Task title..." 
+                  required 
+                  disabled={isSubmitting}
+                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+                />
+                
+                <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Description</label>
+                <textarea 
+                  value={formState.description} 
+                  onChange={(e) => setFormState({...formState, description: e.target.value})} 
+                  placeholder="Description..." 
+                  rows={3} 
+                  disabled={isSubmitting}
+                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none disabled:opacity-50" 
+                />
+                
+                <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Priority</label>
+                <select 
+                  value={formState.priority} 
+                  onChange={(e) => setFormState({...formState, priority: e.target.value as any})} 
+                  disabled={isSubmitting}
+                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+                
+                <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Due Date</label>
+                <input 
+                  type="date" 
+                  value={formState.due_date} 
+                  onChange={(e) => setFormState({...formState, due_date: e.target.value})} 
+                  disabled={isSubmitting}
+                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+                />
+            </FormModal>
           )}
         </AnimatePresence>
 
-        {/* Task Plan - Pass dynamic tasks */}
-        <motion.div variants={itemVariants}>
-          <div className="bg-card rounded-2xl shadow-warm border border-appBorder overflow-hidden">
-            <Plan initialTasks={tasks} onTasksChange={setTasks} />
-          </div>
+        <motion.div variants={itemVariants} className="space-y-6 mt-8">
+          {taskState.loading ? (
+            <p className="text-muted-foreground text-center animate-pulse">Loading tasks...</p>
+          ) : taskState.error ? (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 text-center">
+              <p className="text-red-600 dark:text-red-400 font-medium">Error loading tasks</p>
+              <p className="text-red-500 dark:text-red-300 text-sm mt-1">{taskState.error}</p>
+            </div>
+          ) : taskState.tasks.length > 0 ? (
+            taskState.tasks.map(task => (
+              <TaskCard key={task.id} task={task} onEdit={handleOpenEditModal} />
+            ))
+          ) : (
+            <div className="bg-card rounded-2xl p-8 text-center text-muted-foreground">
+              <p className="font-medium">No tasks yet. Ready to get started?</p>
+              <p className="text-sm mt-2">Try the "Add Task" button or ask the AI to create a project for you.</p>
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </div>
