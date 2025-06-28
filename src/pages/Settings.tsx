@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Moon, Sun, Sliders, Eye, Type, Zap, Bell, Volume2, Check, RotateCcw, Download, Trash2 } from 'lucide-react';
+import { Eye, Type, Bell, Volume2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSettings } from '../context/SettingsContext';
 
@@ -25,7 +25,7 @@ const Settings: React.FC = () => {
 
   // Sample text for preview
   const [previewText, setPreviewText] = useState(
-    "The quick brown fox jumps over the lazy dog. This is a sample text to demonstrate how your settings affect text display and readability."
+    "The quick brown fox jumps over the lazy dog. This is a sample text to demonstrate how your settings affect text display and readability throughout the application."
   );
 
   const containerVariants = {
@@ -48,13 +48,12 @@ const Settings: React.FC = () => {
     }
   };
 
-  const ToggleSwitch = ({ isOn, onToggle, disabled = false }: { isOn: boolean; onToggle: () => void; disabled?: boolean }) => (
+  const ToggleSwitch = ({ isOn, onToggle }: { isOn: boolean; onToggle: () => void }) => (
     <button
       onClick={onToggle}
-      disabled={disabled}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
         isOn ? 'bg-primary' : 'bg-muted'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      }`}
     >
       <span className="sr-only">Toggle setting</span>
       <span
@@ -144,7 +143,7 @@ const Settings: React.FC = () => {
   );
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl">
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -244,6 +243,7 @@ const Settings: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <h3 className="font-medium text-card-foreground mb-4">Notification Style</h3>
+                  <p className="text-sm text-muted-foreground mb-4">Choose how you want to receive notifications from the app</p>
                   <div className="grid grid-cols-3 gap-3">
                     <NotificationButton
                       style="visual"
@@ -263,7 +263,7 @@ const Settings: React.FC = () => {
                       style="both"
                       isSelected={notificationStyle === 'both'}
                       onClick={() => setNotificationStyle('both')}
-                      icon={Sliders}
+                      icon={Bell}
                       label="Both"
                     />
                   </div>
@@ -278,44 +278,16 @@ const Settings: React.FC = () => {
                 </div>
               </div>
             </motion.section>
-
-            {/* Data Management Section */}
-            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
-              <h2 className="text-xl font-semibold text-card-foreground mb-6 flex items-center">
-                <Zap className="mr-3 text-primary" size={24} />
-                Data & Privacy
-              </h2>
-              
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-secondary/10 hover:bg-secondary/20 text-secondary hover:text-secondary-hover rounded-xl transition-colors duration-200 font-medium">
-                    <Download size={18} />
-                    Export Data
-                  </button>
-                  
-                  <button className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 rounded-xl transition-colors duration-200 font-medium">
-                    <Trash2 size={18} />
-                    Clear All Data
-                  </button>
-                </div>
-                
-                <div className="p-4 bg-muted/50 rounded-xl">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    <strong className="text-foreground">Privacy Note:</strong> All your data is stored locally on your device and synced securely with Supabase. 
-                    We don't collect personal information beyond what\'s necessary for the app to function.
-                  </p>
-                </div>
-              </div>
-            </motion.section>
           </div>
           
           {/* Preview Panel */}
           <div className="space-y-6">
             <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
               <h2 className="text-lg font-semibold text-card-foreground mb-4">Live Preview</h2>
+              <p className="text-sm text-muted-foreground mb-4">See how your text settings affect readability in real-time</p>
               
               <div 
-                className={`p-4 bg-background rounded-xl border border-appBorder ${
+                className={`p-4 bg-background rounded-xl border border-appBorder transition-all duration-200 ${
                   highContrast ? 'border-foreground' : ''
                 }`}
                 style={{ 
@@ -347,33 +319,25 @@ const Settings: React.FC = () => {
             </motion.section>
             
             <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
-              <h2 className="text-lg font-semibold text-card-foreground mb-4">Quick Reset</h2>
-              
-              <p className="text-sm text-muted-foreground mb-4">
-                Reset all settings to their default values if you want to start fresh.
-              </p>
-              
-              <button className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground rounded-xl transition-colors duration-200 font-medium">
-                <RotateCcw size={18} />
-                Reset to Defaults
-              </button>
-            </motion.section>
-
-            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
-              <h2 className="text-lg font-semibold text-card-foreground mb-4">App Info</h2>
+              <h2 className="text-lg font-semibold text-card-foreground mb-4">About Your Settings</h2>
               
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Version</span>
-                  <span className="text-foreground font-medium">1.0.0</span>
+                <div className="p-3 bg-primary/5 rounded-xl border border-primary/20">
+                  <p className="text-card-foreground">
+                    <strong>Automatic Saving:</strong> All your preferences are automatically saved and will be remembered the next time you visit.
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Build</span>
-                  <span className="text-foreground font-medium">2024.01</span>
+                
+                <div className="p-3 bg-secondary/5 rounded-xl border border-secondary/20">
+                  <p className="text-card-foreground">
+                    <strong>Accessibility:</strong> These settings are designed to make FocusAssist more accessible and comfortable for users with ADHD, dyslexia, and other learning differences.
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Platform</span>
-                  <span className="text-foreground font-medium">Web</span>
+                
+                <div className="p-3 bg-accent/5 rounded-xl border border-accent/20">
+                  <p className="text-card-foreground">
+                    <strong>Privacy:</strong> All settings are stored locally in your browser. No personal preferences are sent to external servers.
+                  </p>
                 </div>
               </div>
             </motion.section>
