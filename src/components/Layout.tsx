@@ -82,18 +82,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center space-x-3">
           {/* 🎨 MOBILE ICON LOGO - Change AevaLogo import above to use a different small logo */}
-          <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-primary/10">
+          {/* 📏 TO CHANGE MOBILE LOGO SIZE: 
+              - Container size: Change "w-14 h-14" below
+              - Image size: Change "w-12 h-12" below */}
+          <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-primary/10">
             <img 
               src={AevaLogo} 
               alt="Aeva Logo" 
-              className="w-10 h-10 object-contain"
+              className="w-12 h-12 object-contain"
             />
           </div>
           {/* 🎨 MOBILE TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
+          {/* 📏 TO CHANGE MOBILE TEXT LOGO SIZE: Change "h-10" below */}
           <img 
             src={AevaTextLogo} 
             alt="Aeva" 
-            className="h-9 object-contain"
+            className="h-10 object-contain"
           />
         </div>
         <div className="flex items-center space-x-2">
@@ -142,18 +146,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="p-6">
               <div className="flex items-center space-x-3">
                 {/* 🎨 DESKTOP ICON LOGO - Change AevaLogo import above to use a different small logo */}
-                <div className="w-14 h-14 flex items-center justify-center rounded-xl bg-primary/10">
+                {/* 📏 TO CHANGE DESKTOP LOGO SIZE: 
+                    - Container size: Change "w-16 h-16" below
+                    - Image size: Change "w-14 h-14" below */}
+                <div className="w-16 h-16 flex items-center justify-center rounded-xl bg-primary/10">
                   <img 
                     src={AevaLogo} 
                     alt="Aeva Logo" 
-                    className="w-12 h-12 object-contain"
+                    className="w-14 h-14 object-contain"
                   />
                 </div>
                 {/* 🎨 DESKTOP TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
+                {/* 📏 TO CHANGE DESKTOP TEXT LOGO SIZE: Change "h-12" below */}
                 <img 
                   src={AevaTextLogo} 
                   alt="Aeva" 
-                  className="h-10 object-contain"
+                  className="h-12 object-contain"
                 />
               </div>
             </div>
