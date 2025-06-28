@@ -89,18 +89,9 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground relative">
-      {/* Bolt.new Badge - positioned to avoid menu button overlap */}
-      <div className="fixed top-4 right-4 z-40 lg:absolute lg:top-4 lg:right-4 lg:z-10">
-        <div className="lg:hidden">
-          {/* On mobile, position it lower to avoid menu button */}
-          <div className="mt-12">
-            <BoltBadge size="sm" className="shadow-lg" />
-          </div>
-        </div>
-        <div className="hidden lg:block">
-          {/* On desktop, normal positioning */}
-          <BoltBadge size="md" className="shadow-lg" />
-        </div>
+      {/* Bolt.new Badge - Fixed positioning to avoid menu overlap */}
+      <div className="fixed top-4 left-4 z-20 lg:absolute lg:top-4 lg:right-4 lg:left-auto lg:z-10">
+        <BoltBadge size="sm" className="shadow-lg" />
       </div>
 
       <motion.div
