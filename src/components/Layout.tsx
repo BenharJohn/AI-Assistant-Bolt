@@ -16,7 +16,7 @@ import {
 import LiveVoiceShape from './LiveVoiceShape';
 
 // 🎨 LOGO CONFIGURATION - CHANGE THESE IMPORTS TO TRY DIFFERENT LOGOS
-import AevaLogo from '../assets/A.png';           // Small "A" logo for icon
+import AevaLogo from '../assets/fox.png';           // Small "A" logo for icon
 import AevaTextLogo from '../assets/aeva.png';    // "Aeva" text logo for brand name
 
 interface LayoutProps {
