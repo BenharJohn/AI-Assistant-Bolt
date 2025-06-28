@@ -1,7 +1,7 @@
 //dashboard
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react';
+import { Briefcase, Book, CalendarClock, PlusCircle, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTask } from '../context/TaskContext';
 import TaskCard from '../components/TaskCard';
@@ -210,7 +210,7 @@ const Dashboard: React.FC = () => {
             </div>
           ) : (
             <div className="bg-muted border-appBorder rounded-2xl p-6 text-center">
-              <Brain size={32} className="mx-auto text-muted-foreground mb-3" />
+              <CheckCircle size={32} className="mx-auto text-muted-foreground mb-3" />
               {totalTasks === 0 ? (
                 <div>
                   <p className="text-muted-foreground font-medium">No tasks yet!</p>
@@ -252,7 +252,7 @@ const Dashboard: React.FC = () => {
             <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
               <div className="flex items-center mb-3">
                 <div className="rounded-full bg-secondary/10 p-2 mr-3">
-                  <Brain size={20} className={`${iconSecondaryColor}`} />
+                  <CheckCircle size={20} className={`${iconSecondaryColor}`} />
                 </div>
                 <h3 className="font-medium text-card-foreground">Understanding ADHD</h3>
               </div>

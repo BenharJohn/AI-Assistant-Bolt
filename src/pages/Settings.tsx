@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Type, Bell, Volume2, Check } from 'lucide-react';
+import { Eye, Type, Volume2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSettings } from '../context/SettingsContext';
 
@@ -11,16 +11,8 @@ const Settings: React.FC = () => {
     setFontScale,
     lineSpacing,
     setLineSpacing,
-    highContrast,
-    toggleHighContrast,
     reducedMotion,
-    toggleReducedMotion,
-    readingGuide,
-    toggleReadingGuide,
-    notificationStyle,
-    setNotificationStyle,
-    focusSounds,
-    toggleFocusSounds
+    toggleReducedMotion
   } = useSettings();
 
   // Sample text for preview
@@ -113,35 +105,6 @@ const Settings: React.FC = () => {
     </div>
   );
 
-  const NotificationButton = ({ 
-    style, 
-    isSelected, 
-    onClick, 
-    icon: Icon, 
-    label 
-  }: {
-    style: 'visual' | 'audio' | 'both';
-    isSelected: boolean;
-    onClick: () => void;
-    icon: React.ElementType;
-    label: string;
-  }) => (
-    <button
-      onClick={onClick}
-      className={`p-4 rounded-xl text-sm flex flex-col items-center space-y-2 transition-all duration-200 ${
-        isSelected
-          ? 'bg-primary/10 text-primary border-2 border-primary/30'
-          : 'bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border-2 border-transparent'
-      }`}
-    >
-      <Icon size={20} />
-      <span className="font-medium">{label}</span>
-      {isSelected && (
-        <Check size={16} className="text-primary" />
-      )}
-    </button>
-  );
-
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
       <motion.div
@@ -151,7 +114,7 @@ const Settings: React.FC = () => {
       >
         <motion.div variants={itemVariants} className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground mt-2">Customize your FocusAssist experience for optimal productivity and comfort.</p>
+          <p className="text-muted-foreground mt-2">Customize your Aeva experience for optimal productivity and comfort.</p>
         </motion.div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -171,14 +134,6 @@ const Settings: React.FC = () => {
                     <p className="text-sm text-muted-foreground">Switch to a darker color scheme for low light environments</p>
                   </div>
                   <ToggleSwitch isOn={darkMode} onToggle={toggleDarkMode} />
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium text-card-foreground">High Contrast</h3>
-                    <p className="text-sm text-muted-foreground">Increase contrast between text and background for better readability</p>
-                  </div>
-                  <ToggleSwitch isOn={highContrast} onToggle={toggleHighContrast} />
                 </div>
                 
                 <div className="flex justify-between items-center">
@@ -222,60 +177,6 @@ const Settings: React.FC = () => {
                   leftLabel="Compact"
                   rightLabel="Spacious"
                 />
-                
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium text-card-foreground">Reading Guide</h3>
-                    <p className="text-sm text-muted-foreground">Highlight the current line being read for better focus</p>
-                  </div>
-                  <ToggleSwitch isOn={readingGuide} onToggle={toggleReadingGuide} />
-                </div>
-              </div>
-            </motion.section>
-            
-            {/* Audio & Notifications Section */}
-            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
-              <h2 className="text-xl font-semibold text-card-foreground mb-6 flex items-center">
-                <Bell className="mr-3 text-accent" size={24} />
-                Audio & Notifications
-              </h2>
-              
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-medium text-card-foreground mb-4">Notification Style</h3>
-                  <p className="text-sm text-muted-foreground mb-4">Choose how you want to receive notifications from the app</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    <NotificationButton
-                      style="visual"
-                      isSelected={notificationStyle === 'visual'}
-                      onClick={() => setNotificationStyle('visual')}
-                      icon={Eye}
-                      label="Visual Only"
-                    />
-                    <NotificationButton
-                      style="audio"
-                      isSelected={notificationStyle === 'audio'}
-                      onClick={() => setNotificationStyle('audio')}
-                      icon={Volume2}
-                      label="Audio Only"
-                    />
-                    <NotificationButton
-                      style="both"
-                      isSelected={notificationStyle === 'both'}
-                      onClick={() => setNotificationStyle('both')}
-                      icon={Bell}
-                      label="Both"
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium text-card-foreground">Focus Session Sounds</h3>
-                    <p className="text-sm text-muted-foreground">Play ambient sounds during focus sessions to help concentration</p>
-                  </div>
-                  <ToggleSwitch isOn={focusSounds} onToggle={toggleFocusSounds} />
-                </div>
               </div>
             </motion.section>
           </div>
@@ -287,18 +188,16 @@ const Settings: React.FC = () => {
               <p className="text-sm text-muted-foreground mb-4">See how your text settings affect readability in real-time</p>
               
               <div 
-                className={`p-4 bg-background rounded-xl border border-appBorder transition-all duration-200 ${
-                  highContrast ? 'border-foreground' : ''
-                }`}
+                className="p-4 bg-background rounded-xl border border-appBorder transition-all duration-200"
                 style={{ 
                   fontSize: `${fontScale}rem`, 
                   lineHeight: lineSpacing 
                 }}
               >
-                <h3 className={`font-semibold mb-2 ${highContrast ? 'text-foreground' : 'text-foreground'}`}>
+                <h3 className="font-semibold mb-2 text-foreground">
                   Sample Heading
                 </h3>
-                <p className={`${highContrast ? 'text-foreground' : 'text-muted-foreground'}`}>
+                <p className="text-muted-foreground">
                   {previewText}
                 </p>
               </div>
@@ -330,7 +229,7 @@ const Settings: React.FC = () => {
                 
                 <div className="p-3 bg-secondary/5 rounded-xl border border-secondary/20">
                   <p className="text-card-foreground">
-                    <strong>Accessibility:</strong> These settings are designed to make FocusAssist more accessible and comfortable for users with ADHD, dyslexia, and other learning differences.
+                    <strong>Accessibility:</strong> These settings are designed to make Aeva more accessible and comfortable for users with ADHD, dyslexia, and other learning differences.
                   </p>
                 </div>
                 
