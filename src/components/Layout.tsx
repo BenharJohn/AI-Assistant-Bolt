@@ -80,8 +80,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen bg-background text-foreground">
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
-        {/* 🎯 MOBILE SPACING CONTROL: Currently space-x-0.5 (2px spacing) */}
-        <div className="flex items-center justify-center space-x-0.5">
+        {/* 🎯 MOBILE SPACING CONTROL: Currently space-x-0 (0px spacing - TOUCHING!) */}
+        <div className="flex items-center justify-center space-x-0">
           {/* 🦊 MOBILE FOX LOGO - Clean, no background! */}
           {/* 📏 MOBILE FOX LOGO SIZE: w-16 h-16 (clean and prominent) */}
           <div className="flex items-center justify-center">
@@ -145,8 +145,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <aside className="fixed h-screen w-64 bg-card border-r">
           <div className="flex flex-col h-full">
             <div className="p-6">
-              {/* 🎯 DESKTOP SPACING CONTROL: Currently space-x-0.5 (2px spacing) */}
-              <div className="flex items-center justify-start space-x--3">
+              {/* 🎯 DESKTOP SPACING CONTROL: Currently space-x-0 (0px spacing - TOUCHING!) */}
+              <div className="flex items-center justify-start space-x-0">
                 {/* 🦊 DESKTOP FOX LOGO - Clean, no background! */}
                 {/* 📏 DESKTOP FOX LOGO SIZE: w-20 h-20 (prominent and beautiful) */}
                 <div className="flex items-center justify-center">
