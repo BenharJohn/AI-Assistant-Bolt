@@ -80,20 +80,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen bg-background text-foreground">
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
-        {/* 🎯 MOBILE LOGO - TOUCHING CLOSE! */}
-        <div className="flex items-center">
-          {/* 🦊 MOBILE FOX LOGO - Direct image, no wrapper div */}
-          <img 
-            src={AevaLogo} 
-            alt="Aeva Logo" 
-            className="w-16 h-16 object-contain"
-          />
-          {/* 🎨 MOBILE TEXT LOGO - Negative margin to bring it closer */}
-          <img 
-            src={AevaTextLogo} 
-            alt="Aeva" 
-            className="h-10 object-contain -ml-2"
-          />
+        {/* 🎯 MOBILE SPACING CONTROL: Currently space-x-0.5 (2px spacing) */}
+        <div className="flex items-center justify-center space-x-0.5">
+          {/* 🦊 MOBILE FOX LOGO - Clean, no background! */}
+          {/* 📏 MOBILE FOX LOGO SIZE: w-16 h-16 (clean and prominent) */}
+          <div className="flex items-center justify-center">
+            <img 
+              src={AevaLogo} 
+              alt="Aeva Logo" 
+              className="w-16 h-16 object-contain"
+            />
+          </div>
+          {/* 🎨 MOBILE TEXT LOGO - Perfectly centered with fox */}
+          {/* 📏 MOBILE TEXT LOGO SIZE: h-10 */}
+          <div className="flex items-center justify-center">
+            <img 
+              src={AevaTextLogo} 
+              alt="Aeva" 
+              className="h-10 object-contain"
+            />
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           <button 
@@ -139,20 +145,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <aside className="fixed h-screen w-64 bg-card border-r">
           <div className="flex flex-col h-full">
             <div className="p-6">
-              {/* 🎯 DESKTOP LOGO - TOUCHING CLOSE! */}
-              <div className="flex items-center">
-                {/* 🦊 DESKTOP FOX LOGO - Direct image, no wrapper div */}
-                <img 
-                  src={AevaLogo} 
-                  alt="Aeva Logo" 
-                  className="w-20 h-20 object-contain"
-                />
-                {/* 🎨 DESKTOP TEXT LOGO - Negative margin to bring it closer */}
-                <img 
-                  src={AevaTextLogo} 
-                  alt="Aeva" 
-                  className="h-12 object-contain -ml-3"
-                />
+              {/* 🎯 DESKTOP SPACING CONTROL: Currently space-x-0.5 (2px spacing) */}
+              <div className="flex items-center justify-start space-x--3">
+                {/* 🦊 DESKTOP FOX LOGO - Clean, no background! */}
+                {/* 📏 DESKTOP FOX LOGO SIZE: w-20 h-20 (prominent and beautiful) */}
+                <div className="flex items-center justify-center">
+                  <img 
+                    src={AevaLogo} 
+                    alt="Aeva Logo" 
+                    className="w-20 h-20 object-contain"
+                  />
+                </div>
+                {/* 🎨 DESKTOP TEXT LOGO - Perfectly aligned with fox logo */}
+                {/* 📏 DESKTOP TEXT LOGO SIZE: h-12 */}
+                <div className="flex items-center justify-center">
+                  <img 
+                    src={AevaTextLogo} 
+                    alt="Aeva" 
+                    className="h-12 object-contain"
+                  />
+                </div>
               </div>
             </div>
             
