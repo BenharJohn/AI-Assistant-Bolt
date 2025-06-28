@@ -81,19 +81,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center space-x-3">
-          {/* 🎨 MOBILE FOX LOGO - Now BIGGER! */}
-          {/* 📏 MOBILE FOX LOGO SIZE: 
-              - Container size: w-20 h-20 (was w-16 h-16)
-              - Image size: w-18 h-18 (was w-14 h-14) */}
-          <div className="w-20 h-20 flex items-center justify-center rounded-xl bg-primary/10">
-            <img 
-              src={AevaLogo} 
-              alt="Aeva Logo" 
-              className="w-18 h-18 object-contain"
-            />
-          </div>
-          {/* 🎨 MOBILE TEXT LOGO - Now smaller */}
-          {/* 📏 MOBILE TEXT LOGO SIZE: h-10 (was h-12) */}
+          {/* 🦊 MOBILE FOX LOGO - Clean, no background! */}
+          {/* 📏 MOBILE FOX LOGO SIZE: w-16 h-16 (clean and prominent) */}
+          <img 
+            src={AevaLogo} 
+            alt="Aeva Logo" 
+            className="w-16 h-16 object-contain"
+          />
+          {/* 🎨 MOBILE TEXT LOGO - Balanced size */}
+          {/* 📏 MOBILE TEXT LOGO SIZE: h-10 */}
           <img 
             src={AevaTextLogo} 
             alt="Aeva" 
@@ -144,20 +140,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <aside className="fixed h-screen w-64 bg-card border-r">
           <div className="flex flex-col h-full">
             <div className="p-6">
-              <div className="flex items-center space-x-3">
-                {/* 🎨 DESKTOP FOX LOGO - Now MUCH BIGGER! */}
-                {/* 📏 DESKTOP FOX LOGO SIZE: 
-                    - Container size: w-32 h-32 (was w-24 h-24) 
-                    - Image size: w-28 h-28 (was w-20 h-20) */}
-                <div className="w-32 h-32 flex items-center justify-center rounded-xl bg-primary/10">
-                  <img 
-                    src={AevaLogo} 
-                    alt="Aeva Logo" 
-                    className="w-28 h-28 object-contain"
-                  />
-                </div>
-                {/* 🎨 DESKTOP TEXT LOGO - Now smaller */}
-                {/* 📏 DESKTOP TEXT LOGO SIZE: h-12 (was h-14) */}
+              <div className="flex items-center space-x-4">
+                {/* 🦊 DESKTOP FOX LOGO - Clean, no background! */}
+                {/* 📏 DESKTOP FOX LOGO SIZE: w-20 h-20 (prominent and beautiful) */}
+                <img 
+                  src={AevaLogo} 
+                  alt="Aeva Logo" 
+                  className="w-20 h-20 object-contain"
+                />
+                {/* 🎨 DESKTOP TEXT LOGO - Balanced size */}
+                {/* 📏 DESKTOP TEXT LOGO SIZE: h-12 */}
                 <img 
                   src={AevaTextLogo} 
                   alt="Aeva" 
