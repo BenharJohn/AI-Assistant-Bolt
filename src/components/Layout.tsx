@@ -1,7 +1,7 @@
 /// layout.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
   CheckSquare, 
@@ -25,6 +25,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const location = useLocation();
 
   const navItems = [
@@ -136,23 +137,39 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex">
-        <aside className="fixed h-screen w-64 bg-card border-r">
+        <aside 
+          className={`fixed h-screen bg-card border-r transition-all duration-300 ease-in-out ${
+            isSidebarExpanded ? 'w-64' : 'w-20'
+          }`}
+          onMouseEnter={() => setIsSidebarExpanded(true)}
+          onMouseLeave={() => setIsSidebarExpanded(false)}
+        >
           <div className="flex flex-col h-full">
             <div className="p-6">
-              {/* 🎯 DESKTOP LOGO - TOUCHING CLOSE! */}
-              <div className="flex items-center">
-                {/* 🦊 DESKTOP FOX LOGO - Direct image, no wrapper div */}
+              {/* 🎯 DESKTOP LOGO - COLLAPSIBLE */}
+              <div className="flex items-center overflow-hidden">
+                {/* 🦊 DESKTOP FOX LOGO - Always visible */}
                 <img 
                   src={AevaLogo} 
                   alt="Aeva Logo" 
-                  className="w-20 h-20 object-contain"
+                  className={`object-contain transition-all duration-300 ${
+                    isSidebarExpanded ? 'w-12 h-12' : 'w-8 h-8'
+                  }`}
                 />
-                {/* 🎨 DESKTOP TEXT LOGO - Negative margin to bring it closer */}
-                <img 
-                  src={AevaTextLogo} 
-                  alt="Aeva" 
-                  className="h-12 object-contain -ml-3"
-                />
+                {/* 🎨 DESKTOP TEXT LOGO - Shows/hides on hover */}
+                <AnimatePresence>
+                  {isSidebarExpanded && (
+                    <motion.img 
+                      src={AevaTextLogo} 
+                      alt="Aeva" 
+                      className="h-8 object-contain ml-2"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  )}
+                </AnimatePresence>
               </div>
             </div>
             
@@ -161,21 +178,39 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-3 p-3 my-1 rounded-xl transition-colors duration-200 ${
+                  className={`flex items-center my-1 rounded-xl transition-all duration-300 ${
+                    isSidebarExpanded ? 'justify-start space-x-3 p-3' : 'justify-center p-3'
+                  } ${
                     location.pathname === item.path
                       ? 'bg-primary/10 text-primary border-l-4 border-primary'
                       : 'hover:bg-muted'
                   }`}
                 >
-                  {item.icon}
-                  <span>{item.label}</span>
+                  <div className="flex-shrink-0">
+                    {item.icon}
+                  </div>
+                  <AnimatePresence>
+                    {isSidebarExpanded && (
+                      <motion.span
+                        className="whitespace-nowrap"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </Link>
               ))}
             </nav>
           </div>
         </aside>
         
-        <main className="ml-64 w-full">
+        <main className={`transition-all duration-300 ease-in-out w-full ${
+          isSidebarExpanded ? 'ml-64' : 'ml-20'
+        }`}>
           {children}
         </main>
       </div>
