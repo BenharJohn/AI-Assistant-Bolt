@@ -30,7 +30,7 @@ export const useVoiceAI = () => {
     isPlaying: false,
     error: null,
     lastResponse: null
-  });
+  }); 
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -324,6 +324,6 @@ export const useVoiceAI = () => {
     ...state,
     toggleListening,
     clearError,
-    isActive: state.isListening || state.isProcessing || state.isPlaying
+    isActive: state.isListening || state.isProcessing || state.isPlaying 
   };
 };
