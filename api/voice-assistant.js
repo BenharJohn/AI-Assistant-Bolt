@@ -277,7 +277,7 @@ export default async (req, context) => {
 
     // STEP 1: Use gemini-1.5-pro for superior reasoning and complex understanding
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-pro",  // CHANGED: Using the best model for complex reasoning
+      model: "gemini-2.0-flash-exp",  // CHANGED: Using the best model for complex reasoning
       tools: voiceAssistantTools
     });
 
