@@ -146,7 +146,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex flex-col h-full">
             <div className="p-6">
               {/* 🎯 DESKTOP SPACING CONTROL: Currently space-x-0.5 (2px spacing) */}
-              <div className="flex items-center justify-start space-x--1">
+              <div className="flex items-center justify-start space-x--3">
                 {/* 🦊 DESKTOP FOX LOGO - Clean, no background! */}
                 {/* 📏 DESKTOP FOX LOGO SIZE: w-20 h-20 (prominent and beautiful) */}
                 <div className="flex items-center justify-center">
