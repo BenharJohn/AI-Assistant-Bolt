@@ -230,7 +230,7 @@ function getSystemInstruction(mode) {
   }
 }
 
-export const handler = async (event, context) => {
+export default async (event, context) => {
   // Add CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
