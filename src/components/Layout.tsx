@@ -82,18 +82,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center space-x-3">
           {/* 🎨 MOBILE ICON LOGO - Change AevaLogo import above to use a different small logo */}
-          <div className="w-8 h-8 flex items-center justify-center rounded-xl bg-primary/10">
+          <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10">
             <img 
               src={AevaLogo} 
               alt="Aeva Logo" 
-              className="w-6 h-6 object-contain"
+              className="w-8 h-8 object-contain"
             />
           </div>
           {/* 🎨 MOBILE TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
           <img 
             src={AevaTextLogo} 
             alt="Aeva" 
-            className="h-6 object-contain"
+            className="h-8 object-contain"
           />
         </div>
         <div className="flex items-center space-x-2">
@@ -142,18 +142,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="p-6">
               <div className="flex items-center space-x-3">
                 {/* 🎨 DESKTOP ICON LOGO - Change AevaLogo import above to use a different small logo */}
-                <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10">
+                <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-primary/10">
                   <img 
                     src={AevaLogo} 
                     alt="Aeva Logo" 
-                    className="w-8 h-8 object-contain"
+                    className="w-10 h-10 object-contain"
                   />
                 </div>
                 {/* 🎨 DESKTOP TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
                 <img 
                   src={AevaTextLogo} 
                   alt="Aeva" 
-                  className="h-7 object-contain"
+                  className="h-9 object-contain"
                 />
               </div>
             </div>
