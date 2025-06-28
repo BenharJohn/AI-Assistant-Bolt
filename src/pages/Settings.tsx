@@ -302,7 +302,7 @@ const Settings: React.FC = () => {
                 <div className="p-4 bg-muted/50 rounded-xl">
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     <strong className="text-foreground">Privacy Note:</strong> All your data is stored locally on your device and synced securely with Supabase. 
-                    We don't collect personal information beyond what's necessary for the app to function.
+                    We don't collect personal information beyond what\'s necessary for the app to function.
                   </p>
                 </div>
               </div>
