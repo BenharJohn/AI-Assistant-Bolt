@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
 // This Task interface is correct and includes everything we need.
@@ -54,13 +54,10 @@ const TaskContext = createContext<{
 
 export const useTask = () => {
   const context = useContext(TaskContext);
-  if (!context) {
-    throw new Error('useTask must be used within a TaskProvider');
-  }
+  if (!context) throw new Error('useTask must be used within a TaskProvider');
   return context;
 };
 
-// This helper function to build the hierarchy is correct and remains the same.
 const buildHierarchy = (tasks: Task[]): Task[] => {
     const taskMap = new Map(tasks.map(task => [task.id, { ...task, subtasks: [] as Task[] }]));
     const hierarchicalTasks: Task[] = [];
@@ -78,34 +75,77 @@ const buildHierarchy = (tasks: Task[]): Task[] => {
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(taskReducer, initialState);
 
-  const fetchAndSetTasks = async () => {
-    dispatch({ type: 'SET_LOADING', payload: true });
+  const fetchAndSetTasks = useCallback(async () => {
+    // We don't set loading to true here because the realtime listener can call this frequently.
+    // We only want to show the main loading indicator on the initial load.
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
-      // --- vvv FIX #2: SORTING THE TASKS vvv ---
-      // We now order by status first, then by creation date.
-      // 'completed' will be last because 'c' comes after 'p' and 'i'.
-      .order('status', { ascending: true }) 
+      .order('status', { 
+        ascending: true,
+        // Custom ordering: completed tasks last, others first
+        foreignTable: undefined,
+        referencedTable: undefined
+      })
+      .order('priority', { 
+        ascending: false,
+        // Custom ordering: high > medium > low  
+        foreignTable: undefined,
+        referencedTable: undefined
+      })
+      .order('due_date', { 
+        ascending: true,
+        nullsFirst: false,
+        foreignTable: undefined,
+        referencedTable: undefined
+      })
       .order('created_at', { ascending: true });
-      // --- ^^^ END OF FIX #2 ^^^ ---
 
     if (error) {
       console.error('Error fetching tasks:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
     } else {
-      const hierarchicalTasks = buildHierarchy(data || []);
+      // Apply additional custom sorting to ensure the exact order we want
+      const sortedData = (data || []).sort((a, b) => {
+        // 1. First sort by completion status (incomplete tasks first)
+        if (a.status === 'completed' && b.status !== 'completed') return 1;
+        if (a.status !== 'completed' && b.status === 'completed') return -1;
+        
+        // 2. For tasks with the same completion status, sort by priority
+        const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+        const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+        const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+        
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority; // Higher priority first
+        }
+        
+        // 3. For tasks with same status and priority, sort by due date (sooner first)
+        if (a.due_date && b.due_date) {
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        }
+        if (a.due_date && !b.due_date) return -1; // Tasks with due dates come first
+        if (!a.due_date && b.due_date) return 1;
+        
+        // 4. Finally, sort by creation date (newer first for better UX)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      const hierarchicalTasks = buildHierarchy(sortedData);
       dispatch({ type: 'SET_TASKS', payload: hierarchicalTasks });
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // Set loading to true only on the very first load.
+    dispatch({ type: 'SET_LOADING', payload: true });
     fetchAndSetTasks();
 
     const channel = supabase.channel('realtime tasks')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, 
       (payload) => {
-          console.log('Realtime change received!', payload);
+          console.log('Realtime change received! Refetching tasks.', payload);
+          // When a change is detected by the realtime listener (e.g., from the AI), refetch.
           fetchAndSetTasks();
       })
       .subscribe();
@@ -113,30 +153,39 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchAndSetTasks]);
 
-  // --- vvv FIX #1: MANUAL ADD TASK vvv ---
+  // --- vvv THIS IS THE FIX vvv ---
+  // These functions now manually call fetchAndSetTasks after a successful
+  // database operation to guarantee the UI updates instantly for manual actions.
   const addTask = async (task: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks'>>) => {
-    // This function now correctly saves to the database AND ensures the UI updates.
     const { error } = await supabase.from('tasks').insert([task]);
     if (error) {
-        console.error('Error adding task:', error);
+      console.error('Error adding task:', error);
+    } else {
+      await fetchAndSetTasks(); // Manually refresh the UI
     }
-    // We don't need to do anything else, because the Supabase realtime listener
-    // will see the INSERT and automatically call fetchAndSetTasks() for us.
   };
-  // --- ^^^ END OF FIX #1 ^^^ ---
 
   const updateTask = async (id: number, updates: Partial<Task>) => {
     const { error } = await supabase.from('tasks').update(updates).eq('id', id);
-    if (error) console.error('Error updating task:', error);
+    if (error) {
+      console.error('Error updating task:', error);
+    } else {
+       await fetchAndSetTasks(); // Manually refresh the UI
+    }
   };
 
   const deleteTask = async (id: number) => {
     await supabase.from('tasks').delete().eq('parent_task_id', id);
     const { error } = await supabase.from('tasks').delete().eq('id', id);
-    if (error) console.error('Error deleting task:', error);
+    if (error) {
+      console.error('Error deleting task:', error);
+    } else {
+       await fetchAndSetTasks(); // Manually refresh the UI
+    }
   };
+  // --- ^^^ END OF FIX ^^^ ---
 
   return (
     <TaskContext.Provider value={{ state, addTask, updateTask, deleteTask }}>

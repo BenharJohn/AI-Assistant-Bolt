@@ -1,18 +1,20 @@
 import React from 'react';
-import { CheckCircle, Circle, Clock, AlertCircle, X } from 'lucide-react';
+import { CheckCircle, Circle, Clock, AlertCircle, X, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { Task, useTask } from '../context/TaskContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useSettings } from '../context/SettingsContext';
+import { format, parseISO } from 'date-fns';
 
 interface TaskCardProps {
   task: Task;
+  onEdit: (task: Task) => void;
 }
 
-// A smaller component for rendering subtasks cleanly
 const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
     const { updateTask } = useTask();
 
-    // Toggling a subtask's completion status
     const handleToggle = () => {
-        const newStatus = subtask.status === 'completed' ? 'in-progress' : 'completed';
+        const newStatus = subtask.status === 'completed' ? 'pending' : 'completed';
         updateTask(subtask.id, { status: newStatus });
     };
 
@@ -32,17 +34,16 @@ const SubtaskItem: React.FC<{ subtask: Task }> = ({ subtask }) => {
     );
 };
 
-
-const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
   const { updateTask, deleteTask } = useTask();
+  const { reducedMotion } = useSettings();
+  const [isExpanded, setIsExpanded] = React.useState(true);
 
-  // Toggling a parent task's completion status
   const handleToggle = () => {
-    const newStatus = task.status === 'completed' ? 'in-progress' : 'completed';
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
     updateTask(task.id, { status: newStatus });
   };
   
-  // Helper functions for styling, same as before
   const getPriorityClasses = (priority?: string) => {
     switch (priority) {
       case 'high': return 'border-primary bg-primary/5';
@@ -61,8 +62,22 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
     }
   };
 
+  const formatDueDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), 'MMM d, yyyy');
+    } catch {
+      return dateString;
+    }
+  };
+
   return (
-    <div className={`rounded-2xl border-2 transition-all duration-200 shadow-soft hover:shadow-warm ${getPriorityClasses(task.priority)}`}>
+    <motion.div 
+      layout 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className={`rounded-2xl border-2 transition-all duration-200 shadow-soft hover:shadow-warm ${getPriorityClasses(task.priority)}`}
+    >
       <div className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3 flex-1">
@@ -103,15 +118,44 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
                   <div className="flex items-center space-x-1 text-muted-foreground">
                     <Clock size={12} />
                     <span className="text-xs">
-                      Due: {new Date(task.due_date).toLocaleDateString()}
+                      Due: {formatDueDate(task.due_date)}
                     </span>
+                  </div>
+                )}
+
+                {task.tags && task.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {task.tags.map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-0.5 text-xs rounded-full bg-accent/20 text-accent-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
             </div>
           </div>
           
-          <div className="flex space-x-2 ml-4">
+          <div className="flex items-center space-x-2 ml-4">
+              {task.subtasks && task.subtasks.length > 0 && (
+                <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    aria-label={isExpanded ? 'Collapse subtasks' : 'Expand subtasks'}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                    {isExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                </button>
+              )}
+              <button
+                onClick={() => onEdit(task)}
+                aria-label="Edit task"
+                className="text-muted-foreground hover:text-secondary transition-colors duration-200"
+              >
+                  <Pencil size={16} />
+              </button>
               <button
                 onClick={() => deleteTask(task.id)}
                 aria-label="Delete task"
@@ -123,16 +167,24 @@ const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
         </div>
       </div>
       
-      {task.subtasks && task.subtasks.length > 0 && (
-        <div className="border-t-2 border-appBorder bg-background/50">
-            <div className="py-2">
-                {task.subtasks.map(subtask => (
-                    <SubtaskItem key={subtask.id} subtask={subtask} />
-                ))}
-            </div>
-        </div>
-      )}
-    </div>
+      <AnimatePresence>
+        {isExpanded && task.subtasks && task.subtasks.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: reducedMotion ? 0 : 0.3 }}
+            className="border-t-2 border-appBorder bg-background/50 overflow-hidden"
+          >
+              <div className="py-2">
+                  {task.subtasks.map(subtask => (
+                      <SubtaskItem key={subtask.id} subtask={subtask} />
+                  ))}
+              </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 

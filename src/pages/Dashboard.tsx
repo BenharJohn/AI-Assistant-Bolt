@@ -1,36 +1,59 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react'; // Added CheckCircle and Clock for icons
+import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useTask } from '../context/TaskContext';
-import TaskCard from '../components/TaskCard'; // Assuming TaskCard is in ui subfolder
-import AIAssistant from '../components/AIAssistant'; // Assuming AIAssistant is in ui subfolder
-import AICompanionButton from '../components/AICompanionButton'; // Assuming AICompanionButton is in ui subfolder
+import TaskCard from '../components/TaskCard';
+import AIAssistant from '../components/AIAssistant';
+import LiveVoiceShape from '../components/LiveVoiceShape';
+import BoltBadge from '../components/BoltBadge';
 import { useSettings } from '../context/SettingsContext';
-import { format } from 'date-fns';
+import { format, isToday, parseISO } from 'date-fns';
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { state } = useTask();
   const { reducedMotion } = useSettings();
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const today = new Date();
 
-  const priorityTasks = state.tasks
-    .filter(task =>
-      task.status !== 'completed' &&
-      (task.priority === 'high' ||
-       (task.dueDate && new Date(task.dueDate) <= new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000)))
-    )
-    .slice(0, 3);
+  // Calculate stats based on actual database fields
+  const allTasks = state.tasks || [];
+  const incompleteTasks = allTasks.filter(task => task.status !== 'completed');
+  const totalTasks = incompleteTasks.length;
 
-  const completedToday = state.tasks.filter(task =>
-    task.status === 'completed' &&
-    new Date(task.updatedAt).toDateString() === today.toDateString()
-  ).length;
+  // Count tasks completed today (checking created_at since we don't have updated_at)
+  const completedTasks = allTasks.filter(task => task.status === 'completed');
+  const completedToday = completedTasks.filter(task => {
+    try {
+      return isToday(parseISO(task.created_at));
+    } catch {
+      return false;
+    }
+  }).length;
 
-  const totalTasks = state.tasks.filter(task => task.status !== 'completed').length;
-  const completionRate = state.tasks.length > 0
-    ? Math.round((completedToday / Math.max(completedToday + totalTasks, 1)) * 100)
+  // Calculate completion rate
+  const totalDailyTasks = totalTasks + completedToday;
+  const completionRate = totalDailyTasks > 0 
+    ? Math.round((completedToday / totalDailyTasks) * 100) 
     : 0;
+
+  // Get priority tasks (high priority or due soon) using correct field names
+  const priorityTasks = incompleteTasks.filter(task => {
+    if (task.priority === 'high') return true;
+    
+    if (task.due_date) {
+      try {
+        const dueDate = parseISO(task.due_date);
+        const twoDaysFromNow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+        return dueDate <= twoDaysFromNow;
+      } catch {
+        return false;
+      }
+    }
+    
+    return false;
+  }).slice(0, 3);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -59,38 +82,50 @@ const Dashboard: React.FC = () => {
     return 'Good evening';
   };
 
-  // Define icon colors based on the theme for better consistency
-  const iconPrimaryColor = "text-primary"; // Uses Muted Terracotta from your theme
-  const iconSecondaryColor = "text-secondary"; // Uses Gentle Apricot from your theme
-  const iconAccentColor = "text-accent"; // Uses Gentle Apricot (or distinct accent if defined) from your theme
-
+  const iconPrimaryColor = "text-primary";
+  const iconSecondaryColor = "text-secondary";
+  const iconAccentColor = "text-accent";
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground"> {/* Default text for the page */}
+    <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground relative">
+      {/* Bolt.new Badge - positioned to avoid menu button overlap */}
+      <div className="fixed top-4 right-4 z-40 lg:absolute lg:top-4 lg:right-4 lg:z-10">
+        <div className="lg:hidden">
+          {/* On mobile, position it lower to avoid menu button */}
+          <div className="mt-12">
+            <BoltBadge size="sm" className="shadow-lg" />
+          </div>
+        </div>
+        <div className="hidden lg:block">
+          {/* On desktop, normal positioning */}
+          <BoltBadge size="md" className="shadow-lg" />
+        </div>
+      </div>
+
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <motion.div variants={itemVariants} className="mb-8">
-          {/* Greeting text uses foreground color by default now, which should be dark enough. */}
-          {/* Explicitly setting it for clarity. */}
+        <motion.div variants={itemVariants} className="mb-8 pt-12 lg:pt-0">
           <h1 className="text-3xl font-bold text-foreground">{greetingMessage()}!</h1>
           <p className="text-muted-foreground mt-2">Today is {format(today, 'EEEE, MMMM d, yyyy')}</p>
         </motion.div>
 
-        {/* AI Companion Button */}
+        {/* Live Voice AI Shape */}
         <motion.div variants={itemVariants} className="flex justify-center mb-8">
-          {/* AICompanionButton should internally use themed styles */}
-          <AICompanionButton onActivate={() => setShowAIAssistant(true)} />
+          <div className="text-center">
+            <LiveVoiceShape />
+            <p className="text-xs text-muted-foreground mt-2">Your live AI companion</p>
+          </div>
         </motion.div>
 
         {/* Stats Section */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"> {/* Increased gap slightly */}
+        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Card 1: Tasks Today */}
           <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
             <div className="flex items-center mb-4">
-              <div className="rounded-full bg-primary/10 p-3 mr-4"> {/* Light tint of primary */}
+              <div className="rounded-full bg-primary/10 p-3 mr-4">
                 <Briefcase className={`h-6 w-6 ${iconPrimaryColor}`} />
               </div>
               <div>
@@ -103,9 +138,9 @@ const Dashboard: React.FC = () => {
                 <span>Completion Rate</span>
                 <span>{completionRate}%</span>
               </div>
-              <div className="w-full bg-muted rounded-full h-2.5"> {/* Slightly thicker bar */}
+              <div className="w-full bg-muted rounded-full h-2.5">
                 <div
-                  className="bg-primary h-2.5 rounded-full"
+                  className="bg-primary h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${completionRate}%` }}
                 ></div>
               </div>
@@ -115,8 +150,8 @@ const Dashboard: React.FC = () => {
           {/* Card 2: Completed */}
           <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
             <div className="flex items-center mb-4">
-              <div className="rounded-full bg-secondary/10 p-3 mr-4"> {/* Light tint of secondary */}
-                <CheckCircle className={`h-6 w-6 ${iconSecondaryColor}`} /> {/* Changed icon */}
+              <div className="rounded-full bg-secondary/10 p-3 mr-4">
+                <CheckCircle className={`h-6 w-6 ${iconSecondaryColor}`} />
               </div>
               <div>
                 <h3 className="text-lg font-medium text-card-foreground">Completed</h3>
@@ -133,16 +168,18 @@ const Dashboard: React.FC = () => {
           {/* Card 3: Focus Time */}
           <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
             <div className="flex items-center mb-4">
-              <div className="rounded-full bg-accent/10 p-3 mr-4"> {/* Light tint of accent */}
-                <Clock className={`h-6 w-6 ${iconAccentColor}`} /> {/* Changed icon */}
+              <div className="rounded-full bg-accent/10 p-3 mr-4">
+                <Clock className={`h-6 w-6 ${iconAccentColor}`} />
               </div>
               <div>
                 <h3 className="text-lg font-medium text-card-foreground">Focus Time</h3>
                 <p className="text-2xl font-bold text-card-foreground">25:00</p>
               </div>
             </div>
-            {/* Use one of the button styles from index.css or Tailwind theme */}
-            <button className="w-full mt-2 btn-primary"> {/* Applied .btn-primary */}
+            <button 
+              onClick={() => navigate('/focus')}
+              className="w-full mt-2 btn-primary"
+            >
               Start Focus Session
             </button>
           </div>
@@ -152,28 +189,55 @@ const Dashboard: React.FC = () => {
         <motion.div variants={itemVariants} className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-foreground">Priority Tasks</h2>
-            <button className={`text-primary hover:text-primary-hover flex items-center text-sm font-medium`}>
+            <button 
+              onClick={() => navigate('/tasks')}
+              className={`text-primary hover:text-primary-hover flex items-center text-sm font-medium transition-colors duration-200`}
+            >
               <PlusCircle size={16} className="mr-1" />
               Add Task
             </button>
           </div>
 
-          {priorityTasks.length > 0 ? (
-            <div className="space-y-4"> {/* Added space between task cards */}
+          {state.loading ? (
+            <div className="bg-card rounded-2xl p-6 text-center">
+              <div className="animate-pulse">
+                <div className="h-4 bg-muted rounded w-1/4 mx-auto mb-2"></div>
+                <div className="h-4 bg-muted rounded w-1/2 mx-auto"></div>
+              </div>
+            </div>
+          ) : state.error ? (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center">
+              <p className="text-red-600 dark:text-red-400 font-medium">Unable to load tasks</p>
+              <p className="text-red-500 dark:text-red-300 text-sm mt-1">{state.error}</p>
+            </div>
+          ) : priorityTasks.length > 0 ? (
+            <div className="space-y-4">
               {priorityTasks.map(task => (
-                // TaskCard should internally use themed styles (bg-card, text-card-foreground etc.)
-                <TaskCard key={task.id} task={task} />
+                <TaskCard key={task.id} task={task} onEdit={() => navigate('/tasks')} />
               ))}
             </div>
           ) : (
             <div className="bg-muted border-appBorder rounded-2xl p-6 text-center">
-              <Brain size={32} className="mx-auto text-muted-foreground mb-3" /> {/* Added an icon */}
-              <p className="text-muted-foreground">No priority tasks right now. Great job!</p>
+              <Brain size={32} className="mx-auto text-muted-foreground mb-3" />
+              {totalTasks === 0 ? (
+                <div>
+                  <p className="text-muted-foreground font-medium">No tasks yet!</p>
+                  <p className="text-muted-foreground text-sm mt-1">Get started by creating your first task.</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-muted-foreground font-medium">No priority tasks right now!</p>
+                  <p className="text-muted-foreground text-sm mt-1">You're all caught up with urgent items.</p>
+                </div>
+              )}
             </div>
           )}
 
           {priorityTasks.length > 0 && (
-            <button className={`w-full mt-4 text-primary hover:text-primary-hover text-sm font-medium`}>
+            <button 
+              onClick={() => navigate('/tasks')}
+              className={`w-full mt-4 text-primary hover:text-primary-hover text-sm font-medium transition-colors duration-200`}
+            >
               View All Tasks →
             </button>
           )}
@@ -183,16 +247,19 @@ const Dashboard: React.FC = () => {
         <motion.div variants={itemVariants}>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-foreground">Learning Resources</h2>
-            <button className={`text-primary hover:text-primary-hover flex items-center text-sm font-medium`}>
+            <button 
+              onClick={() => navigate('/learning')}
+              className={`text-primary hover:text-primary-hover flex items-center text-sm font-medium transition-colors duration-200`}
+            >
               View All
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Increased gap */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Learning Card 1 */}
             <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
               <div className="flex items-center mb-3">
-                <div className="rounded-full bg-secondary/10 p-2 mr-3"> {/* Light tint of secondary */}
+                <div className="rounded-full bg-secondary/10 p-2 mr-3">
                   <Brain size={20} className={`${iconSecondaryColor}`} />
                 </div>
                 <h3 className="font-medium text-card-foreground">Understanding ADHD</h3>
@@ -200,7 +267,10 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-muted-foreground mb-3">
                 Learn about executive functioning, attention regulation, and practical strategies for everyday life.
               </p>
-              <button className={`text-secondary hover:text-secondary-hover text-sm font-medium`}>
+              <button 
+                onClick={() => navigate('/learning')}
+                className={`text-secondary hover:text-secondary-hover text-sm font-medium transition-colors duration-200`}
+              >
                 Explore →
               </button>
             </div>
@@ -208,7 +278,7 @@ const Dashboard: React.FC = () => {
             {/* Learning Card 2 */}
             <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
               <div className="flex items-center mb-3">
-                <div className="rounded-full bg-accent/10 p-2 mr-3"> {/* Light tint of accent */}
+                <div className="rounded-full bg-accent/10 p-2 mr-3">
                   <Book size={20} className={`${iconAccentColor}`} />
                 </div>
                 <h3 className="font-medium text-card-foreground">Reading Strategies</h3>
@@ -216,7 +286,10 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-muted-foreground mb-3">
                 Effective techniques for improving reading comprehension, focus, and retention.
               </p>
-              <button className={`text-accent hover:text-accent-hover text-sm font-medium`}> {/* Assuming accent-hover is defined or use secondary-hover */}
+              <button 
+                onClick={() => navigate('/learning')}
+                className={`text-accent hover:text-accent-hover text-sm font-medium transition-colors duration-200`}
+              >
                 Explore →
               </button>
             </div>
@@ -224,7 +297,7 @@ const Dashboard: React.FC = () => {
         </motion.div>
       </motion.div>
 
-      {showAIAssistant && <AIAssistant onClose={() => setShowAIAssistant(false)} />} {/* Assuming AIAssistant has an onClose prop */}
+      {showAIAssistant && <AIAssistant onClose={() => setShowAIAssistant(false)} />}
     </div>
   );
 };

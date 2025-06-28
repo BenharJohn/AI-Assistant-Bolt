@@ -7,15 +7,12 @@ import {
   Clock, 
   BookOpen, 
   Settings, 
-  Moon, 
-  Sun, 
   Menu, 
   X,
   Brain,
   BookHeart,
   Bot
 } from 'lucide-react';
-import { useSettings } from '../context/SettingsContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,7 +21,6 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const location = useLocation();
-  const { darkMode, toggleDarkMode } = useSettings();
 
   const navItems = [
     { path: '/', label: 'Home', icon: <Home size={20} /> },
@@ -47,7 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const toggleMenu = () => setMenuOpen(!menuOpen);
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark' : ''} bg-background text-foreground`}>
+    <div className="min-h-screen bg-background text-foreground">
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center space-x-2">
@@ -57,12 +53,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <h1 className="text-lg font-semibold">FocusAssist</h1>
         </div>
         <div className="flex items-center space-x-2">
-          <button 
-            onClick={toggleDarkMode}
-            className="p-2 rounded-xl hover:bg-muted transition-colors duration-200"
-          >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
           <button 
             onClick={toggleMenu}
             className="p-2 rounded-xl hover:bg-muted transition-colors duration-200"
@@ -130,16 +120,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </Link>
               ))}
             </nav>
-            
-            <div className="p-4 border-t">
-              <button
-                onClick={toggleDarkMode}
-                className="flex items-center space-x-3 w-full p-3 rounded-xl hover:bg-muted transition-colors duration-200"
-              >
-                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-                <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
-              </button>
-            </div>
           </div>
         </aside>
         
