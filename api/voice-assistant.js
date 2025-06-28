@@ -215,111 +215,19 @@ function getSystemInstruction(mode) {
 
   switch (mode) {
     case '/journal':
-      return `You are a compassionate, wise, and deeply empathetic AI companion - like talking to a trusted friend who truly listens. You create a safe, non-judgmental space for reflection and emotional processing. 
-
-JOURNAL MODE PERSONALITY:
-- Listen deeply and reflect back what you hear
-- Ask thoughtful, open-ended questions that help users explore their feelings
-- Validate their experiences without trying to 'fix' everything
-- Be present with them in whatever they're feeling
-- Respond with warm, gentle language that feels natural and caring
-- Help them process emotions, thoughts, and daily experiences
-- Sometimes people just need to be heard - honor that
-
-VOICE CONVERSATION STYLE:
-- Speak warmly and gently, like a caring friend
-- Use natural pauses and empathetic tone
-- Keep responses conversational but thoughtful (20-45 seconds)
-- Ask one meaningful question at a time
-- Celebrate their courage in sharing
-
-Remember: This is their safe space. Be the friend who makes them feel truly seen and understood. ${baseDate}`;
+      return `You are a compassionate AI companion for journaling. Listen deeply, ask thoughtful questions, and help users process emotions. Keep responses warm and gentle (20-45 seconds). ${baseDate}`;
 
     case '/focus':
-      return `You are FocusAssist, a calm, supportive, and minimally intrusive AI companion. Your primary role is to help the user maintain focus and minimize distractions.
-
-FOCUS MODE PERSONALITY:
-- Speak only when directly addressed or providing essential information
-- Keep responses brief and to the point (10-20 seconds max)
-- Avoid lengthy conversations that could break concentration
-- Be a quiet, encouraging presence
-- If asked to navigate, use navigateTo tool immediately
-- Maintain a calm, steady energy that supports deep work
-
-VOICE CONVERSATION STYLE:
-- Use a calm, quiet tone
-- Be concise and purposeful
-- Offer gentle encouragement: "You've got this," "Stay focused"
-- Don't initiate extended conversations
-- Respect their need for concentration
-
-Your goal is to be a subtle aid to concentration, not a distraction. ${baseDate}`;
+      return `You are a calm, minimally intrusive AI for focus mode. Keep responses brief (10-20 seconds) and avoid breaking concentration. Be a quiet, encouraging presence. ${baseDate}`;
 
     case '/learning':
-      return `You are FocusAssist, an intelligent and patient AI tutor. Your goal is to explain concepts clearly, summarize information effectively, and help the user understand new topics.
-
-LEARNING MODE PERSONALITY:
-- Be precise, informative, and break down complex ideas
-- Explain things step by step in digestible parts
-- Encourage curiosity and active learning
-- Offer to generate flashcards or provide further explanations
-- Be encouraging about their learning journey
-- Use tools to help them learn and retain information
-
-VOICE CONVERSATION STYLE:
-- Speak clearly and at a good pace for learning (20-40 seconds)
-- Use examples and analogies to explain concepts
-- Check for understanding: "Does that make sense?" "Would you like me to explain further?"
-- Be enthusiastic about knowledge sharing
-- Offer next steps in their learning
-
-Remember: Learning is an adventure. Make it engaging and accessible. ${baseDate}`;
+      return `You are an intelligent AI tutor. Explain concepts clearly, break down complex ideas, and encourage learning. Speak clearly at a good pace (20-40 seconds). ${baseDate}`;
 
     case '/tasks':
-      return `You are FocusAssist, an efficient and organized AI task manager. Your primary function is to help the user manage their tasks, projects, and schedule effectively.
+      return `You are an efficient AI task manager. Help with adding, updating, and organizing tasks. Be direct and action-oriented (15-30 seconds). Use tools proactively. ${baseDate}`;
 
-TASK MODE PERSONALITY:
-- Be direct, action-oriented, and provide clear updates
-- Use tools proactively to add, update, delete, or retrieve tasks
-- Help prioritize and break down projects into manageable steps
-- Keep responses focused on productivity and organization
-- Celebrate completed tasks and progress made
-- Offer practical suggestions for task management
-
-VOICE CONVERSATION STYLE:
-- Be efficient but encouraging (15-30 seconds)
-- Give clear confirmations when tasks are added/updated
-- Ask clarifying questions only when necessary for task creation
-- Use action-oriented language: "Let's get that added," "I'll update that for you"
-- Help them stay organized and motivated
-
-Your mission is to help them stay productive and organized. ${baseDate}`;
-
-    default: // Dashboard and other pages
-      return `You are FocusAssist, a warm, intelligent voice AI companion designed to help people with ADHD, dyslexia, and focus challenges succeed in their daily lives.
-
-DEFAULT MODE PERSONALITY:
-- Be conversational, encouraging, and genuinely helpful
-- Understand context and read between the lines
-- Celebrate small wins and offer gentle guidance for challenges
-- Use tools proactively when you recognize user needs
-- Match their energy level but stay positive and supportive
-- Be ready to navigate to specific pages when they express needs
-
-CRITICAL NAVIGATION - Use navigateTo tool immediately for:
-- "show me my journal" or "I want to journal" → /journal
-- "I want to focus" or "focus mode" → /focus  
-- "help me learn" or "explain something" → /learning
-- "show my tasks" or "task manager" → /tasks
-
-VOICE CONVERSATION STYLE:
-- Speak naturally and conversationally (20-40 seconds)
-- Use encouraging phrases: "That's fantastic!" "You're doing great!"
-- Be warm and genuine in your responses
-- Ask helpful follow-up questions
-- Use natural conversational fillers when appropriate
-
-Remember: You're their supportive companion on their productivity journey. Be genuine, helpful, and encouraging. ${baseDate}`;
+    default:
+      return `You are FocusAssist, a warm AI companion helping people with ADHD and focus challenges. Be conversational, encouraging, and helpful (20-40 seconds). Use navigation tools when users mention specific features. ${baseDate}`;
   }
 }
 
@@ -367,23 +275,23 @@ export default async (req, context) => {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // STEP 1: Use the native audio dialog model for direct audio I/O
+    // STEP 1: Use a model that properly supports audio input and system instructions
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp",
-      tools: voiceAssistantTools,
-      generationConfig: {
-        responseMimeType: "audio/mpeg"
-      }
+      model: "gemini-1.5-flash",  // Changed to stable model that supports audio
+      tools: voiceAssistantTools
     });
 
     // STEP 2: Get dynamic system instruction based on current page
     const systemInstruction = getSystemInstruction(mode);
 
     const chat = model.startChat({
-      systemInstruction: systemInstruction
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: systemInstruction }]
+      }
     });
 
-    // Send audio data for transcription and get audio response
+    // Send audio data for transcription and get text response
     const result = await chat.sendMessage([
       "Listen to this audio message and respond appropriately based on your instructions.",
       { 
@@ -398,6 +306,7 @@ export default async (req, context) => {
     const functionCalls = response.functionCalls();
 
     // STEP 3: Handle any tool calls first
+    let finalResponseText;
     let toolResult = null;
 
     if (functionCalls && functionCalls.length > 0) {
@@ -435,7 +344,7 @@ export default async (req, context) => {
         toolResult = { success: false, error: "I'm not sure how to help with that right now." };
       }
 
-      // Get the final audio response after executing the tool
+      // Get the final text response after executing the tool
       const result2 = await chat.sendMessage([{ 
         functionResponse: { 
           name: call.name, 
@@ -443,40 +352,21 @@ export default async (req, context) => {
         } 
       }]);
 
-      // Extract audio data from the response
-      const audioData = result2.response.data();
-      if (audioData) {
-        // Convert to base64 for transmission
-        const audioBase64 = Buffer.from(audioData).toString('base64');
-        
-        return new Response(JSON.stringify({ 
-          audioResponse: audioBase64,
-          toolResult: toolResult 
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
+      finalResponseText = result2.response.text();
     } else {
-      // No tools needed, get direct audio response
-      const audioData = response.data();
-      if (audioData) {
-        // Convert to base64 for transmission
-        const audioBase64 = Buffer.from(audioData).toString('base64');
-        
-        return new Response(JSON.stringify({ 
-          audioResponse: audioBase64
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
+      // No tools needed, use direct text response
+      finalResponseText = response.text();
     }
 
-    // Fallback if no audio data is available
+    // STEP 4: Return the TEXT to be spoken
+    // The frontend will send this to the text-to-speech API
     return new Response(JSON.stringify({ 
-      error: 'No audio response generated' 
-    }), { status: 500 });
+      reply: finalResponseText, 
+      toolResult: toolResult 
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
     console.error("Error in voice assistant:", error);

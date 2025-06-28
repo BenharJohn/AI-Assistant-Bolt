@@ -1,13 +1,11 @@
 import React from 'react';
 
 interface BoltBadgeProps {
-  variant?: 'black' | 'white' | 'text';
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }
 
 const BoltBadge: React.FC<BoltBadgeProps> = ({ 
-  variant = 'black', 
   className = '',
   size = 'md' 
 }) => {
@@ -22,18 +20,6 @@ const BoltBadge: React.FC<BoltBadgeProps> = ({
     lg: 'w-12 h-12'
   };
 
-  if (variant === 'text') {
-    return (
-      <button
-        onClick={handleClick}
-        className={`inline-flex items-center px-3 py-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 ${className}`}
-        aria-label="Built with Bolt.new"
-      >
-        Built with Bolt
-      </button>
-    );
-  }
-
   return (
     <button
       onClick={handleClick}
@@ -41,26 +27,12 @@ const BoltBadge: React.FC<BoltBadgeProps> = ({
       aria-label="Built with Bolt.new"
       title="Built with Bolt.new"
     >
-      {/* The path should be an absolute path from the root, not including "public" */}
-      {variant === 'black' ? (
-        <img 
-          src="/black_circle_360x360.png" 
-          alt="Built with Bolt.new" 
-          className="w-full h-full object-contain"
-          loading="lazy"
-        />
-      ) : (
-        // Fallback to white circle for dark backgrounds
-        <div className="w-full h-full rounded-full bg-white flex items-center justify-center shadow-lg">
-          <img 
-            src="/black_circle_360x360.png" 
-            alt="Built with Bolt.new" 
-            className="w-full h-full object-contain"
-            loading="lazy"
-            style={{ filter: 'invert(1)' }}
-          />
-        </div>
-      )}
+      <img 
+        src="/black_circle_360x360.png" 
+        alt="Built with Bolt.new" 
+        className="w-full h-full object-contain"
+        loading="lazy"
+      />
       
       {/* Enhanced hover tooltip */}
       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 text-xs text-white bg-black rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50 shadow-lg">

@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 interface VoiceAIResponse {
-  audioResponse?: string;
+  reply?: string;
   toolResult?: {
     success: boolean;
     path?: string;
@@ -233,14 +233,14 @@ export const useVoiceAI = () => {
         navigate(voiceData.toolResult.path);
       }
 
-      // Play the audio response directly from Gemini
-      if (voiceData.audioResponse) {
-        await playAudioResponse(voiceData.audioResponse);
-      }
+      const textToSpeak = voiceData.reply || voiceData.toolResult?.result || 'I got your message';
+
+      // Convert response text to speech
+      await convertTextToSpeech(textToSpeak);
 
       updateState({ 
         isProcessing: false,
-        lastResponse: voiceData.toolResult?.result || 'Voice message processed',
+        lastResponse: textToSpeak,
         error: null
       });
 
@@ -253,18 +253,19 @@ export const useVoiceAI = () => {
     }
   }, [navigate, updateState, location.pathname]);
 
-  const playAudioResponse = useCallback(async (audioBase64: string) => {
+  const convertTextToSpeech = useCallback(async (text: string) => {
     try {
       updateState({ isPlaying: true });
 
-      // Convert base64 to blob
-      const audioData = atob(audioBase64);
-      const uint8Array = new Uint8Array(audioData.length);
-      for (let i = 0; i < audioData.length; i++) {
-        uint8Array[i] = audioData.charCodeAt(i);
-      }
-      const audioBlob = new Blob([uint8Array], { type: 'audio/mpeg' });
-      
+      const ttsResponse = await fetch('/api/text-to-speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+
+      if (!ttsResponse.ok) throw new Error('Text-to-speech failed');
+
+      const audioBlob = await ttsResponse.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
       
@@ -292,8 +293,8 @@ export const useVoiceAI = () => {
       await audio.play();
 
     } catch (error) {
-      console.error('Audio playback failed:', error);
-      updateState({ isPlaying: false, error: 'Could not play audio response' });
+      console.error('Text-to-speech failed:', error);
+      updateState({ isPlaying: false, error: 'Could not generate speech response' });
     }
   }, [updateState, location.pathname, startListening, state.isProcessing, state.isPlaying]);
 
