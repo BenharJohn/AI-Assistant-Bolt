@@ -14,8 +14,10 @@ import {
   Bot
 } from 'lucide-react';
 import LiveVoiceShape from './LiveVoiceShape';
-// Import the custom logo
-import AevaLogo from '../assets/A.png';
+
+// 🎨 LOGO CONFIGURATION - CHANGE THESE IMPORTS TO TRY DIFFERENT LOGOS
+import AevaLogo from '../assets/A.png';           // Small "A" logo for icon
+import AevaTextLogo from '../assets/aeva.png';    // "Aeva" text logo for brand name
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -79,6 +81,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center space-x-3">
+          {/* 🎨 MOBILE ICON LOGO - Change AevaLogo import above to use a different small logo */}
           <div className="w-8 h-8 flex items-center justify-center rounded-xl bg-primary/10">
             <img 
               src={AevaLogo} 
@@ -86,12 +89,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               className="w-6 h-6 object-contain"
             />
           </div>
-          <h1 
-            className="text-lg font-bold"
-            style={{ fontFamily: '"Inter", "Jackson BC", serif' }}
-          >
-            Aeva
-          </h1>
+          {/* 🎨 MOBILE TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
+          <img 
+            src={AevaTextLogo} 
+            alt="Aeva" 
+            className="h-6 object-contain"
+          />
         </div>
         <div className="flex items-center space-x-2">
           <button 
@@ -138,6 +141,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex flex-col h-full">
             <div className="p-6">
               <div className="flex items-center space-x-3">
+                {/* 🎨 DESKTOP ICON LOGO - Change AevaLogo import above to use a different small logo */}
                 <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10">
                   <img 
                     src={AevaLogo} 
@@ -145,12 +149,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     className="w-8 h-8 object-contain"
                   />
                 </div>
-                <h1 
-                  className="text-xl font-bold"
-                  style={{ fontFamily: '"Inter", "Jackson BC", serif' }}
-                >
-                  Aeva
-                </h1>
+                {/* 🎨 DESKTOP TEXT LOGO - Change AevaTextLogo import above to use a different text logo */}
+                <img 
+                  src={AevaTextLogo} 
+                  alt="Aeva" 
+                  className="h-7 object-contain"
+                />
               </div>
             </div>
             
