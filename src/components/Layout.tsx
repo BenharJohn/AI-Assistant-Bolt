@@ -80,7 +80,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen bg-background text-foreground">
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
-        <div className="flex items-center justify-center space-x-2">
+        <div className="flex items-center justify-center space-x-1">
           {/* 🦊 MOBILE FOX LOGO - Clean, no background! */}
           {/* 📏 MOBILE FOX LOGO SIZE: w-16 h-16 (clean and prominent) */}
           <div className="flex items-center justify-center">
