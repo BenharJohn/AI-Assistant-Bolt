@@ -40,6 +40,7 @@ export const useVoiceAI = () => {
   const silenceTimerRef = useRef<number | null>(null);
   const vadIntervalRef = useRef<number | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const autoRestartTimeoutRef = useRef<number | null>(null);
 
   const updateState = useCallback((updates: Partial<VoiceAIState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -115,6 +116,10 @@ export const useVoiceAI = () => {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
+    if (autoRestartTimeoutRef.current) {
+      clearTimeout(autoRestartTimeoutRef.current);
+      autoRestartTimeoutRef.current = null;
+    }
     analyserRef.current = null;
   }, []);
 
@@ -126,6 +131,12 @@ export const useVoiceAI = () => {
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
         currentAudioRef.current = null;
+      }
+      
+      // Clear any pending auto-restart
+      if (autoRestartTimeoutRef.current) {
+        clearTimeout(autoRestartTimeoutRef.current);
+        autoRestartTimeoutRef.current = null;
       }
       
       if (!(await initializeAudio())) return;
@@ -310,14 +321,13 @@ export const useVoiceAI = () => {
             utterance.onend = () => {
               updateState({ isPlaying: false });
               
-              // AUTO-RESTART: Start listening again after AI finishes speaking
-              const continuousPages = ['/', '/journal', '/companion'];
-              if (continuousPages.includes(location.pathname)) {
-                setTimeout(() => {
-                  if (!state.isProcessing && !state.isPlaying) {
+              // IMPROVED AUTO-RESTART: Only restart on dashboard and ONLY if user initiated the conversation
+              if (location.pathname === '/' && !text.includes('Good morning') && !text.includes('Good afternoon') && !text.includes('Good evening')) {
+                autoRestartTimeoutRef.current = setTimeout(() => {
+                  if (!state.isProcessing && !state.isPlaying && !state.isListening) {
                     startListening();
                   }
-                }, 500);
+                }, 1000); // 1 second delay
               }
             };
             
@@ -349,14 +359,13 @@ export const useVoiceAI = () => {
           URL.revokeObjectURL(audioUrl);
           currentAudioRef.current = null;
           
-          // AUTO-RESTART: Start listening again after AI finishes speaking
-          const continuousPages = ['/', '/journal', '/companion'];
-          if (continuousPages.includes(location.pathname)) {
-            setTimeout(() => {
-              if (!state.isProcessing && !state.isPlaying) {
+          // IMPROVED AUTO-RESTART: Only restart on dashboard and ONLY if user initiated the conversation
+          if (location.pathname === '/' && !text.includes('Good morning') && !text.includes('Good afternoon') && !text.includes('Good evening')) {
+            autoRestartTimeoutRef.current = setTimeout(() => {
+              if (!state.isProcessing && !state.isPlaying && !state.isListening) {
                 startListening();
               }
-            }, 500);
+            }, 1000); // 1 second delay
           }
         };
         
@@ -376,7 +385,7 @@ export const useVoiceAI = () => {
       console.error('Text-to-speech failed:', error);
       updateState({ isPlaying: false, error: 'Could not generate speech response' });
     }
-  }, [updateState, location.pathname, startListening, state.isProcessing, state.isPlaying]);
+  }, [updateState, location.pathname, startListening, state.isProcessing, state.isPlaying, state.isListening]);
 
   const toggleListening = useCallback(() => {
     if (state.isListening) {
@@ -405,13 +414,19 @@ export const useVoiceAI = () => {
     };
   }, [cleanupVAD]);
 
-  // Handle page changes - stop any ongoing audio
+  // Handle page changes - stop any ongoing audio and auto-restart
   useEffect(() => {
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
     window.speechSynthesis.cancel();
+    
+    // Clear any pending auto-restart when changing pages
+    if (autoRestartTimeoutRef.current) {
+      clearTimeout(autoRestartTimeoutRef.current);
+      autoRestartTimeoutRef.current = null;
+    }
     
     if (state.isPlaying) {
       updateState({ isPlaying: false });
