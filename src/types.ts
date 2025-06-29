@@ -31,5 +31,3 @@ export interface Flashcard {
   answer: string;
   set_id: number;
 }
-
-export type PatternType = 'infinity' | 'heart' | 'wave' | 'figure-eight';

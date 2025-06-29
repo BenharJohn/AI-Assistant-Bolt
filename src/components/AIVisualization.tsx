@@ -111,6 +111,7 @@ const AIVisualization: React.FC<AIVisualizationProps> = ({
 
       // Apply emotional variations with gentler effects
       const emotionalScale = 1 + Math.sin(time.current * 1.5) * emotion * 0.15;
+      const emotionalWave = Math.sin(time.current * 2) * emotion * 8;
 
       // Draw the shape with smooth curves
       currentShape.current.forEach((point, i) => {

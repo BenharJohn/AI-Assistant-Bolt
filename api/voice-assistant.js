@@ -416,5 +416,3 @@ export default async (event, context) => {
     };
   }
 };
-
-export const config = { path: "/api/voice-assistant" };
