@@ -138,16 +138,14 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground relative">
-      {/* Bolt.new Badge - positioned to avoid menu button overlap */}
-      <div className="fixed top-4 right-4 z-40 lg:absolute lg:top-4 lg:right-4 lg:z-10">
+      {/* Bolt.new Badge - ADJUSTED: Further right, lower, and bigger on desktop */}
+      <div className="fixed top-24 right-2 z-30 lg:fixed lg:top-10 lg:right-10 lg:z-20">
         <div className="lg:hidden">
-          {/* On mobile, position it lower to avoid menu button */}
-          <div className="mt-12">
-            <BoltBadge size="md" className="shadow-lg" />
-          </div>
+          {/* On mobile, positioned to avoid menu interference */}
+          <BoltBadge size="sm" className="shadow-lg" />
         </div>
         <div className="hidden lg:block">
-          {/* On desktop, normal positioning */}
+          {/* On desktop, bigger size and adjusted position */}
           <BoltBadge size="lg" className="shadow-lg" />
         </div>
       </div>
@@ -157,7 +155,7 @@ const Dashboard: React.FC = () => {
         initial="hidden"
         animate="visible"
       >
-        <motion.div variants={itemVariants} className="mb-8 pt-12 lg:pt-0">
+        <motion.div variants={itemVariants} className="mb-8 pt-4 lg:pt-0">
           <h1 className="text-4xl font-bold text-foreground">{greetingMessage()}!</h1>
           <p className="text-muted-foreground mt-2 text-lg">Today is {format(today, 'EEEE, MMMM d, yyyy')}</p>
         </motion.div>
