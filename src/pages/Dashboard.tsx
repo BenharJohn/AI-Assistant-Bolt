@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import { motion } from 'framer-motion';
 import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -138,6 +139,7 @@ const Dashboard: React.FC = () => {
           {/* On desktop, normal positioning */}
           <BoltBadge size="lg" className="shadow-lg" />
         </div>
+
       </div>
 
       <motion.div

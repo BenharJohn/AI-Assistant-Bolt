@@ -1,3 +1,4 @@
+/// layout.tsx
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import foxIcon from '../assets/fox.png';
 import aevaLogo from '../assets/aeva.png';
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -43,6 +45,35 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
 
+  // Hide floating voice assistant on dashboard (/) since it has its own main one
+  const showFloatingVoice = location.pathname !== '/';
+
+  // Dynamic positioning based on page
+  const getFloatingPosition = () => {
+    switch (location.pathname) {
+      case '/focus':
+        // On focus page, position lower right to avoid focus controls
+        return 'bottom-6 right-6 lg:bottom-24 lg:right-6';
+      case '/journal':
+        // On journal page, position middle right to avoid text input
+        return 'bottom-32 right-4 lg:bottom-32 lg:right-6';
+      case '/learning':
+        // On learning page, position to avoid content
+        return 'bottom-24 right-4 lg:bottom-8 lg:right-8';
+      case '/tasks':
+        // On tasks page, avoid task cards and add button
+        return 'bottom-32 right-4 lg:bottom-16 lg:right-6';
+      case '/companion':
+        // On companion page, position lower to avoid chat interface
+        return 'bottom-6 right-4 lg:bottom-6 lg:right-6';
+      case '/settings':
+        // On settings page, standard position
+        return 'bottom-24 right-6 lg:bottom-8 lg:right-8';
+      default:
+        return 'bottom-24 right-6 lg:bottom-8 lg:right-8';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Mobile Header */}
@@ -65,7 +96,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu */} 
       {menuOpen && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -157,6 +188,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ))}
         </div>
       </nav>
+
+      {/* Conditional Floating Voice Assistant */}
+      {showFloatingVoice && (
+        <div className={`fixed ${getFloatingPosition()} z-40`}>
+          <motion.div 
+            className="flex flex-col items-center"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5, duration: 0.3 }}
+          >
+            <LiveVoiceShape className="mb-2" />
+            <motion.p 
+              className="text-xs text-muted-foreground text-center bg-card/90 backdrop-blur-sm px-2 py-1 rounded-lg shadow-lg border border-appBorder/50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+            >
+              AI Assistant
+            </motion.p>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

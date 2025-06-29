@@ -30,7 +30,7 @@ export const useVoiceAI = () => {
     isPlaying: false,
     error: null,
     lastResponse: null
-  }); 
+  });
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -39,6 +39,7 @@ export const useVoiceAI = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const silenceTimerRef = useRef<number | null>(null);
   const vadIntervalRef = useRef<number | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const updateState = useCallback((updates: Partial<VoiceAIState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -62,13 +63,13 @@ export const useVoiceAI = () => {
     }
   }, [updateState]);
 
-  // Voice Activity Detection setup
+  // Enhanced Voice Activity Detection setup
   const setupVAD = useCallback((stream: MediaStream) => {
     if (!audioContextRef.current) return;
 
     const source = audioContextRef.current.createMediaStreamSource(stream);
     const analyser = audioContextRef.current.createAnalyser();
-    analyser.fftSize = 256;
+    analyser.fftSize = 512;
     analyser.smoothingTimeConstant = 0.8;
     
     source.connect(analyser);
@@ -78,15 +79,15 @@ export const useVoiceAI = () => {
     const dataArray = new Uint8Array(bufferLength);
 
     let silenceStart = 0;
-    const SILENCE_THRESHOLD = 30; // Adjust based on testing
-    const SILENCE_DURATION = 1500; // 1.5 seconds of silence before stopping
+    const SILENCE_THRESHOLD = 25; // Adjusted for better sensitivity
+    const SILENCE_DURATION = 2000; // 2 seconds of silence before stopping
 
     const checkAudioLevel = () => {
       if (!analyserRef.current) return;
       
       analyser.getByteFrequencyData(dataArray);
       
-      // Calculate average volume
+      // Calculate average volume with better accuracy
       const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
       
       if (average < SILENCE_THRESHOLD) {
@@ -121,6 +122,12 @@ export const useVoiceAI = () => {
     try {
       updateState({ error: null });
       
+      // Stop any currently playing audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      
       if (!(await initializeAudio())) return;
 
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -128,7 +135,8 @@ export const useVoiceAI = () => {
           sampleRate: 16000,
           channelCount: 1,
           echoCancellation: true,
-          noiseSuppression: true
+          noiseSuppression: true,
+          autoGainControl: true
         } 
       });
       
@@ -152,6 +160,11 @@ export const useVoiceAI = () => {
 
       mediaRecorder.onstop = () => {
         processAudio();
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        updateState({ error: 'Recording failed. Please try again.', isListening: false });
       };
 
       mediaRecorder.start(100); // Collect data every 100ms
@@ -199,7 +212,7 @@ export const useVoiceAI = () => {
         reader.readAsDataURL(audioBlob);
       });
 
-      // Send to voice assistant with current page context
+      // STEP 1: Send audio to voice assistant for transcription and logic
       const voiceResponse = await fetch('/api/voice-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -209,14 +222,12 @@ export const useVoiceAI = () => {
         })
       });
 
-      // Handle non-successful responses by extracting detailed error message
       if (!voiceResponse.ok) {
         let errorMessage = 'Voice assistant request failed';
         try {
           const errorData = await voiceResponse.json();
           errorMessage = errorData.error || errorData.message || `HTTP ${voiceResponse.status}: ${voiceResponse.statusText}`;
         } catch {
-          // If we can't parse the error response, fall back to status text
           errorMessage = `HTTP ${voiceResponse.status}: ${voiceResponse.statusText}`;
         }
         throw new Error(errorMessage);
@@ -235,7 +246,7 @@ export const useVoiceAI = () => {
 
       const textToSpeak = voiceData.reply || voiceData.toolResult?.result || 'I got your message';
 
-      // Convert response text to speech
+      // STEP 2: Convert response text to speech
       await convertTextToSpeech(textToSpeak);
 
       updateState({ 
@@ -332,15 +343,36 @@ export const useVoiceAI = () => {
               startListening();
             }
           }, 500);
-        }
-      };
-      
-      audio.onerror = () => {
-        updateState({ isPlaying: false, error: 'Could not play audio response' });
-        URL.revokeObjectURL(audioUrl);
-      };
 
-      await audio.play();
+        }
+        
+        utterance.onend = () => {
+          updateState({ isPlaying: false });
+          currentAudioRef.current = null;
+          
+          // AUTO-RESTART: Start listening again after AI finishes speaking
+          const continuousPages = ['/', '/journal', '/companion'];
+          if (continuousPages.includes(location.pathname)) {
+            setTimeout(() => {
+              if (!state.isProcessing && !state.isPlaying) {
+                startListening();
+              }
+            }, 800); // Slightly longer delay for smoother experience
+          }
+        };
+        
+        utterance.onerror = (event) => {
+          console.error('Speech synthesis error:', event);
+          updateState({ isPlaying: false, error: 'Could not play audio response' });
+          currentAudioRef.current = null;
+        };
+
+        // Cancel any ongoing speech before starting new one
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+      } else {
+        throw new Error('Speech synthesis not supported');
+      }
 
     } catch (error) {
       console.error('Text-to-speech failed:', error);
@@ -360,15 +392,33 @@ export const useVoiceAI = () => {
     updateState({ error: null });
   }, [updateState]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount and handle page changes
   useEffect(() => {
     return () => {
       cleanupVAD();
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      window.speechSynthesis.cancel();
     };
   }, [cleanupVAD]);
+
+  // Handle page changes - stop any ongoing audio
+  useEffect(() => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    window.speechSynthesis.cancel();
+    
+    if (state.isPlaying) {
+      updateState({ isPlaying: false });
+    }
+  }, [location.pathname, state.isPlaying, updateState]);
 
   return {
     ...state,
@@ -376,5 +426,6 @@ export const useVoiceAI = () => {
     clearError,
     convertTextToSpeech, // Export this for the greeting functionality
     isActive: state.isListening || state.isProcessing || state.isPlaying 
+
   };
 };

@@ -228,6 +228,7 @@ function getSystemInstruction(mode) {
 
     default:
       return `You are Aeva, a warm AI companion helping people with ADHD and focus challenges. Be conversational, encouraging, and helpful (20-40 seconds). Use navigation tools when users mention specific features. ${baseDate}`;
+
   }
 }
 
@@ -275,13 +276,13 @@ export default async (req, context) => {
     const genAI = new GoogleGenerativeAI(API_KEY);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // STEP 1: Use a model that properly supports audio input and system instructions
+    // STEP 1: Use gemini-1.5-pro for superior reasoning and complex understanding
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",  // Changed to stable model that supports audio
+      model: "gemini-2.0-flash-exp",  // CHANGED: Using the best model for complex reasoning
       tools: voiceAssistantTools
     });
 
-    // STEP 2: Get dynamic system instruction based on current page
+    // STEP 2: Get dynamic system instruction with explicit transcription instruction
     const systemInstruction = getSystemInstruction(mode);
 
     const chat = model.startChat({
@@ -291,9 +292,9 @@ export default async (req, context) => {
       }
     });
 
-    // Send audio data for transcription and get text response
+    // Send audio data for transcription and intelligent response
     const result = await chat.sendMessage([
-      "Listen to this audio message and respond appropriately based on your instructions.",
+      "Listen to this audio message, transcribe it accurately, and then respond appropriately based on your instructions.",
       { 
         inlineData: { 
           mimeType: "audio/webm", 
@@ -358,8 +359,8 @@ export default async (req, context) => {
       finalResponseText = response.text();
     }
 
-    // STEP 4: Return the TEXT to be spoken
-    // The frontend will send this to the text-to-speech API
+    // STEP 4: Return ONLY the TEXT to be spoken
+    // The frontend will send this to the separate text-to-speech API
     return new Response(JSON.stringify({ 
       reply: finalResponseText, 
       toolResult: toolResult 

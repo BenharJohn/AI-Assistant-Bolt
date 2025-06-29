@@ -39,7 +39,7 @@ const BoltBadge: React.FC<BoltBadgeProps> = ({
   return (
     <button
       onClick={handleClick}
-      className={`group relative ${sizeClasses[size]} hover:scale-110 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 rounded-full ${className}`}
+      className={`group relative ${sizeClasses[size]} hover:scale-110 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 rounded-full z-30 ${className}`}
       aria-label="Built with Bolt.new"
       title="Built with Bolt.new"
     >
