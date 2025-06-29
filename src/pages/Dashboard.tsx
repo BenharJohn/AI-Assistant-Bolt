@@ -10,8 +10,6 @@ import BoltBadge from '../components/BoltBadge';
 import { useSettings } from '../context/SettingsContext';
 import { useVoiceAI } from '../hooks/useVoiceAI';
 import { format, isToday, parseISO } from 'date-fns';
-// Import the custom Aeva logo
-import aevaLogo from '../assets/aeva.png';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -160,19 +158,8 @@ const Dashboard: React.FC = () => {
         animate="visible"
       >
         <motion.div variants={itemVariants} className="mb-8 pt-12 lg:pt-0">
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 flex items-center justify-center rounded-2xl overflow-hidden bg-primary/5">
-              <img 
-                src={aevaLogo} 
-                alt="Aeva AI" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-foreground">{greetingMessage()}!</h1>
-              <p className="text-muted-foreground mt-2 text-lg">Today is {format(today, 'EEEE, MMMM d, yyyy')}</p>
-            </div>
-          </div>
+          <h1 className="text-4xl font-bold text-foreground">{greetingMessage()}!</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Today is {format(today, 'EEEE, MMMM d, yyyy')}</p>
         </motion.div>
 
         {/* Live Voice AI Shape - Made Bigger */}
