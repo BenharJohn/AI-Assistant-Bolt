@@ -13,6 +13,9 @@ import {
   Bot
 } from 'lucide-react';
 import LiveVoiceShape from './LiveVoiceShape';
+// Import the custom assets
+import foxLogo from '../assets/fox.png';
+import aevaLogo from '../assets/aeva.png';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -49,22 +52,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getFloatingPosition = () => {
     switch (location.pathname) {
       case '/focus':
-        // On focus page, position lower right to avoid focus controls
         return 'bottom-6 right-6 lg:bottom-24 lg:right-6';
       case '/journal':
-        // On journal page, position middle right to avoid text input
         return 'bottom-32 right-4 lg:bottom-32 lg:right-6';
       case '/learning':
-        // On learning page, position to avoid content
         return 'bottom-24 right-4 lg:bottom-8 lg:right-8';
       case '/tasks':
-        // On tasks page, avoid task cards and add button
         return 'bottom-32 right-4 lg:bottom-16 lg:right-6';
       case '/companion':
-        // On companion page, position lower to avoid chat interface
         return 'bottom-6 right-4 lg:bottom-6 lg:right-6';
       case '/settings':
-        // On settings page, standard position
         return 'bottom-24 right-6 lg:bottom-8 lg:right-8';
       default:
         return 'bottom-24 right-6 lg:bottom-8 lg:right-8';
@@ -76,8 +73,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10">
-            <Bot className="w-6 h-6 text-primary" />
+          <div className="w-10 h-10 flex items-center justify-center rounded-xl overflow-hidden">
+            <img 
+              src={foxLogo} 
+              alt="Aeva Fox Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-lg font-semibold">Aeva</h1>
         </div>
@@ -91,7 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* Mobile Menu */} 
+      {/* Mobile Menu */ 
       {menuOpen && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -126,10 +127,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex flex-col h-full">
             <div className="p-6">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-primary/10">
-                  <Bot className="w-7 h-7 text-primary" />
+                <div className="w-12 h-12 flex items-center justify-center rounded-xl overflow-hidden">
+                  <img 
+                    src={foxLogo} 
+                    alt="Aeva Fox Logo" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
-                <h1 className="text-xl font-semibold">Aeva</h1>
+                <div>
+                  <h1 className="text-xl font-semibold">Aeva</h1>
+                  <p className="text-xs text-muted-foreground">AI Companion</p>
+                </div>
               </div>
             </div>
             
