@@ -23,7 +23,7 @@ export default async (req, context) => {
     
     // Use Gemini 1.5 Flash model configured for audio output
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-pro-preview-tts",
+      model: "gemini-2.5-flash-preview-tts",
       generationConfig: {
         responseMimeType: "audio/wav"
       }
