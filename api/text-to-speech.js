@@ -21,12 +21,15 @@ export default async (req, context) => {
     // Initialize Gemini AI client
     const genAI = new GoogleGenerativeAI(API_KEY);
     
-    // Use the TTS model - no generation config needed for TTS models
+    // Use Gemini TTS model with proper configuration for audio output
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash-preview-tts"
+      model: "gemini-2.5-flash-preview-tts",
+      generationConfig: {
+        responseMimeType: "audio/wav"
+      }
     });
 
-    // For TTS models, pass the text directly - no complex structure needed
+    // Generate audio from text - TTS models expect direct text input
     const result = await model.generateContent(text);
 
     const response = result.response;
