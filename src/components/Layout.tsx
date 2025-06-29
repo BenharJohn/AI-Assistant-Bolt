@@ -9,10 +9,10 @@ import {
   Settings, 
   Menu, 
   X,
-  Brain,
   BookHeart,
   Bot
 } from 'lucide-react';
+import foxIcon from '../assets/fox.png';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -47,10 +47,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 flex items-center justify-center rounded-xl bg-primary/10">
-            <Brain className="w-5 h-5 text-primary" />
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img src={foxIcon} alt="Aeva" className="w-7 h-7 object-contain" />
           </div>
-          <h1 className="text-lg font-semibold">FocusAssist</h1>
+          <h1 className="text-lg font-semibold">Aeva</h1>
         </div>
         <div className="flex items-center space-x-2">
           <button 
@@ -97,10 +97,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex flex-col h-full">
             <div className="p-6">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10">
-                  <Brain className="w-6 h-6 text-primary" />
+                <div className="w-10 h-10 flex items-center justify-center">
+                  <img src={foxIcon} alt="Aeva" className="w-9 h-9 object-contain" />
                 </div>
-                <h1 className="text-xl font-semibold">FocusAssist</h1>
+                <h1 className="text-xl font-semibold">Aeva</h1>
               </div>
             </div>
             
