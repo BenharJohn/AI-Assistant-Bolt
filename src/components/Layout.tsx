@@ -99,7 +99,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <aside className="fixed h-screen w-64 bg-card border-r">
           <div className="flex flex-col h-full">
             <div className="p-6">
-              <div className="flex items-center -space-x-3">
+              <div className="flex items-center -space-x-5">
                 <div className="w-20 h-20 flex items-center justify-center">
                   <img src={foxIcon} alt="Aeva Fox" className="w-18 h-18 object-contain" />
                 </div>
