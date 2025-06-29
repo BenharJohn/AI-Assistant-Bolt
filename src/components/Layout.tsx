@@ -92,7 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* Mobile Menu */ 
+      {/* Mobile Menu */} 
       {menuOpen && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
