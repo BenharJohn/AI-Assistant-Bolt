@@ -1,5 +1,7 @@
 // File: /api/text-to-speech.js
-import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// NOTE: This function does not use the GoogleGenerativeAI library,
+// as it calls the specific Text-to-Speech REST API endpoint directly.
 
 export default async (req, context) => {
   if (req.method !== 'POST') {
@@ -12,61 +14,67 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ error: 'No text provided' }), { status: 400 });
     }
 
-    const API_KEY = process.env.GEMINI_API_KEY;
+    const API_KEY = process.env.GEMINI_API_KEY; // We use the same API key
     if (!API_KEY) {
       console.error("FATAL: GEMINI_API_KEY not set.");
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
     }
 
-    // Initialize Gemini AI client
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    
-    // Use Gemini 1.5 Flash model configured for audio output
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-pro-preview-tts",
-      generationConfig: {
-        responseMimeType: "audio/wav"
-      }
+    // This is the correct endpoint for Google's Text-to-Speech API
+    const API_URL = `https://texttospeech.googleapis.com/v1beta/text:synthesize?key=${API_KEY}`;
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // The request body is structured specifically for the TTS API
+      body: JSON.stringify({
+        input: {
+          text: text,
+        },
+        // We can select a specific voice. 'en-US-Studio-O' is a high-quality, friendly female voice.
+        voice: {
+          languageCode: 'en-US',
+          name: 'en-US-Studio-O',
+        },
+        audioConfig: {
+          audioEncoding: 'MP3', // Request the audio in MP3 format
+        },
+      }),
     });
 
-    // Generate audio from text
-    const result = await model.generateContent([
-      {
-        text: `Please convert the following text to speech with a clear, natural voice: "${text}"`
-      }
-    ]);
-
-    const response = result.response;
-    
-    // Check if we have audio data
-    if (!response.candidates || !response.candidates[0] || !response.candidates[0].content) {
-      throw new Error('No audio content generated');
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Google TTS API Error:', errorData);
+      throw new Error('Failed to generate audio from Google TTS.');
     }
 
-    // Extract audio data from the response
-    const audioData = response.candidates[0].content.parts[0];
+    const data = await response.json();
     
-    if (!audioData.inlineData || !audioData.inlineData.data) {
-      throw new Error('No audio data found in response');
+    // The API returns the audio as a base64 encoded string in the `audioContent` field
+    const audioContent = data.audioContent;
+    if (!audioContent) {
+      throw new Error("No audio content was returned from the API.");
     }
 
-    // Convert base64 audio data to binary
-    const audioBuffer = Buffer.from(audioData.inlineData.data, 'base64');
+    // Convert the base64 string into a binary Buffer
+    const audioBuffer = Buffer.from(audioContent, 'base64');
 
     // Return the audio file directly to the browser
     return new Response(audioBuffer, {
       status: 200,
       headers: { 
-        'Content-Type': 'audio/wav',
+        'Content-Type': 'audio/mpeg',
         'Content-Length': audioBuffer.length.toString()
       },
     });
 
   } catch (error) {
-    console.error("Error in Gemini text-to-speech function:", error);
+    console.error("Error in Google text-to-speech function:", error);
     return new Response(JSON.stringify({ 
-      error: 'Failed to process text-to-speech.',
-      details: error.message 
+        error: 'Failed to process text-to-speech.',
+        details: error.message 
     }), { status: 500 });
   }
 };
