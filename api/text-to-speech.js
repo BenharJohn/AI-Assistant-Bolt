@@ -1,7 +1,5 @@
 // File: /api/text-to-speech.js
-
-// This function calls the Gemini Text-to-Speech API endpoint directly
-// using the Gemini TTS models (gemini-2.5-flash-preview-tts)
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export default async (req, context) => {
   if (req.method !== 'POST') {
@@ -20,41 +18,26 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
     }
 
-    // Use the correct Gemini TTS API endpoint
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${API_KEY}`;
-
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: text
-          }]
-        }],
-        generationConfig: {
-          // For TTS models, we don't specify response_mime_type
-          // The model automatically returns audio content
-        }
-      }),
+    // Initialize Gemini AI client
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    
+    // Use the TTS model - no generation config needed for TTS models
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash-preview-tts"
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini TTS API Error:', response.status, errorText);
-      throw new Error(`Failed to generate audio: ${response.status} ${response.statusText}`);
-    }
+    // For TTS models, pass the text directly - no complex structure needed
+    const result = await model.generateContent(text);
 
-    const data = await response.json();
+    const response = result.response;
     
-    // Extract audio data from the response
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+    // Check if we have audio data
+    if (!response.candidates || !response.candidates[0] || !response.candidates[0].content) {
       throw new Error('No audio content generated');
     }
 
-    const audioData = data.candidates[0].content.parts[0];
+    // Extract audio data from the response
+    const audioData = response.candidates[0].content.parts[0];
     
     if (!audioData.inlineData || !audioData.inlineData.data) {
       throw new Error('No audio data found in response');
