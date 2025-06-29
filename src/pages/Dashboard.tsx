@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,14 +8,52 @@ import AIAssistant from '../components/AIAssistant';
 import LiveVoiceShape from '../components/LiveVoiceShape';
 import BoltBadge from '../components/BoltBadge';
 import { useSettings } from '../context/SettingsContext';
+import { useVoiceAI } from '../hooks/useVoiceAI';
 import { format, isToday, parseISO } from 'date-fns';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { state } = useTask();
   const { reducedMotion } = useSettings();
+  const { convertTextToSpeech } = useVoiceAI();
   const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [hasPlayedGreeting, setHasPlayedGreeting] = useState(false);
   const today = new Date();
+
+  // Play greeting on first load
+  useEffect(() => {
+    const playGreeting = async () => {
+      // Check if we've already played a greeting in this session
+      const sessionKey = 'greeting_played_' + new Date().toDateString();
+      if (sessionStorage.getItem(sessionKey) || hasPlayedGreeting) {
+        return;
+      }
+
+      // Wait a moment for the component to fully load
+      setTimeout(async () => {
+        const hour = today.getHours();
+        let greeting = '';
+        
+        if (hour < 12) {
+          greeting = 'Good morning! Ready to make today productive?';
+        } else if (hour < 17) {
+          greeting = 'Good afternoon! How can I help you stay focused today?';
+        } else {
+          greeting = 'Good evening! Let\'s wrap up the day strong.';
+        }
+
+        try {
+          await convertTextToSpeech(greeting);
+          sessionStorage.setItem(sessionKey, 'true');
+          setHasPlayedGreeting(true);
+        } catch (error) {
+          console.log('Greeting playback failed:', error);
+        }
+      }, 2000); // 2 second delay to let the page load
+    };
+
+    playGreeting();
+  }, [convertTextToSpeech, today, hasPlayedGreeting]);
 
   // Calculate stats based on actual database fields
   const allTasks = state.tasks || [];

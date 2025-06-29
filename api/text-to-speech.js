@@ -1,81 +1,99 @@
 // File: /api/text-to-speech.js
 
-// This function does NOT use the GoogleGenerativeAI library.
-// It calls the specific Google Cloud Text-to-Speech REST API endpoint directly.
-
 export default async (req, context) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
   }
 
   try {
-    const { text } = await req.json();
+    const { text, useWebSpeech = false } = await req.json();
     if (!text) {
       return new Response(JSON.stringify({ error: 'No text provided' }), { status: 400 });
     }
 
-    const API_KEY = process.env.GEMINI_API_KEY; // We use the same Google AI API key
-    if (!API_KEY) {
-      console.error("FATAL: GEMINI_API_KEY not set.");
+    // If Web Speech API is requested, return instruction to use browser TTS
+    if (useWebSpeech) {
+      return new Response(JSON.stringify({ 
+        useWebSpeech: true,
+        text: text 
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+    if (!ELEVENLABS_API_KEY) {
+      console.error("FATAL: ELEVENLABS_API_KEY not set.");
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
     }
 
-    // This is the correct, dedicated endpoint for Google's Text-to-Speech API
-    const API_URL = `https://texttospeech.googleapis.com/v1beta/text:synthesize?key=${API_KEY}`;
+    // Using Rachel voice (21m00Tcm4TlvDq8ikWAM) - a friendly female voice
+    const VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
+    const API_URL = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`;
 
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
+        'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY
       },
-      // The request body must be structured specifically for the TTS API
       body: JSON.stringify({
-        input: {
-          text: text,
-        },
-        // We can select a specific voice. 'en-US-Studio-O' is a high-quality, friendly female voice.
-        voice: {
-          languageCode: 'en-US',
-          name: 'en-US-Studio-O',
-        },
-        audioConfig: {
-          audioEncoding: 'MP3', // Request the audio in MP3 format
-        },
+        text: text,
+        model_id: 'eleven_turbo_v2', // Fast, high-quality model
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          style: 0.0,
+          use_speaker_boost: true
+        }
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Google TTS API Error:', errorData);
-      throw new Error('Failed to generate audio from Google TTS.');
+      const errorText = await response.text();
+      console.error('Eleven Labs API Error:', errorText);
+      
+      // Return fallback instruction instead of throwing error
+      return new Response(JSON.stringify({ 
+        useWebSpeech: true,
+        text: text,
+        error: 'Eleven Labs failed, using fallback'
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    const data = await response.json();
-    
-    // The API returns the audio as a base64 encoded string in the `audioContent` field
-    const audioContent = data.audioContent;
-    if (!audioContent) {
-      throw new Error("No audio content was returned from the API.");
-    }
+    // Eleven Labs returns audio directly as binary stream
+    const audioBuffer = await response.arrayBuffer();
 
-    // Convert the base64 string into a binary Buffer
-    const audioBuffer = Buffer.from(audioContent, 'base64');
+    if (!audioBuffer || audioBuffer.byteLength === 0) {
+      throw new Error("No audio content was returned from Eleven Labs API.");
+    }
 
     // Return the audio file directly to the browser
     return new Response(audioBuffer, {
       status: 200,
       headers: { 
         'Content-Type': 'audio/mpeg',
-        'Content-Length': audioBuffer.length.toString()
+        'Content-Length': audioBuffer.byteLength.toString()
       },
     });
 
   } catch (error) {
-    console.error("Error in Google text-to-speech function:", error);
+    console.error("Error in Eleven Labs text-to-speech function:", error);
+    
+    // Return fallback instruction instead of error
     return new Response(JSON.stringify({ 
-        error: 'Failed to process text-to-speech.',
-        details: error.message 
-    }), { status: 500 });
+      useWebSpeech: true,
+      text: text || 'Hello',
+      error: 'TTS service unavailable, using browser fallback'
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 };
 
