@@ -1,4 +1,5 @@
 // File: /api/text-to-speech.js
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export default async (req, context) => {
   if (req.method !== 'POST') {
@@ -11,47 +12,62 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ error: 'No text provided' }), { status: 400 });
     }
 
-    const API_KEY = process.env.ELEVENLABS_API_KEY;
+    const API_KEY = process.env.GEMINI_API_KEY;
     if (!API_KEY) {
-      console.error("FATAL: ELEVENLABS_API_KEY not set.");
+      console.error("FATAL: GEMINI_API_KEY not set.");
       return new Response(JSON.stringify({ error: 'Server configuration error.' }), { status: 500 });
     }
 
-    // You can find different voice IDs on the ElevenLabs website. 'Rachel' has a clear, friendly voice.
-    const VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; 
-    const API_URL = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`;
-
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'xi-api-key': API_KEY,
-      },
-      body: JSON.stringify({
-        text: text,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-        },
-      }),
+    // Initialize Gemini AI client
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    
+    // Use Gemini 1.5 Flash model configured for audio output
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "audio/wav"
+      }
     });
 
-    if (!response.ok) {
-      console.error('ElevenLabs API Error:', await response.text());
-      throw new Error('Failed to generate audio.');
+    // Generate audio from text
+    const result = await model.generateContent([
+      {
+        text: `Please convert the following text to speech with a clear, natural voice: "${text}"`
+      }
+    ]);
+
+    const response = result.response;
+    
+    // Check if we have audio data
+    if (!response.candidates || !response.candidates[0] || !response.candidates[0].content) {
+      throw new Error('No audio content generated');
     }
 
+    // Extract audio data from the response
+    const audioData = response.candidates[0].content.parts[0];
+    
+    if (!audioData.inlineData || !audioData.inlineData.data) {
+      throw new Error('No audio data found in response');
+    }
+
+    // Convert base64 audio data to binary
+    const audioBuffer = Buffer.from(audioData.inlineData.data, 'base64');
+
     // Return the audio file directly to the browser
-    const audioBlob = await response.blob();
-    return new Response(audioBlob, {
+    return new Response(audioBuffer, {
       status: 200,
-      headers: { 'Content-Type': 'audio/mpeg' },
+      headers: { 
+        'Content-Type': 'audio/wav',
+        'Content-Length': audioBuffer.length.toString()
+      },
     });
 
   } catch (error) {
-    console.error("Error in text-to-speech function:", error);
-    return new Response(JSON.stringify({ error: 'Failed to process text-to-speech.' }), { status: 500 });
+    console.error("Error in Gemini text-to-speech function:", error);
+    return new Response(JSON.stringify({ 
+      error: 'Failed to process text-to-speech.',
+      details: error.message 
+    }), { status: 500 });
   }
 };
 
