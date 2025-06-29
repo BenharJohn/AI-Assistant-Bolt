@@ -1,2 +1,2 @@
 AI-Assistant-Bolt
-test 
+test
