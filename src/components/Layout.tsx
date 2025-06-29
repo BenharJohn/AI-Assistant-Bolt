@@ -99,12 +99,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <aside className="fixed h-screen w-64 bg-card border-r">
           <div className="flex flex-col h-full">
             <div className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className="w-14 h-14 flex items-center justify-center">
-                  <img src={foxIcon} alt="Aeva Fox" className="w-13 h-13 object-contain" />
+              <div className="flex items-center space-x-2">
+                <div className="w-16 h-16 flex items-center justify-center">
+                  <img src={foxIcon} alt="Aeva Fox" className="w-15 h-15 object-contain" />
                 </div>
-                <div className="h-10 flex items-center">
-                  <img src={aevaLogo} alt="Aeva" className="h-8 object-contain" />
+                <div className="h-12 flex items-center">
+                  <img src={aevaLogo} alt="Aeva" className="h-10 object-contain" />
                 </div>
               </div>
             </div>
