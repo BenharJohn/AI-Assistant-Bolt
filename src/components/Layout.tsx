@@ -47,7 +47,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen bg-background text-foreground">
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center -space-x-2">
           <div className="w-14 h-14 flex items-center justify-center">
             <img src={foxIcon} alt="Aeva Fox" className="w-13 h-13 object-contain" />
           </div>
@@ -99,7 +99,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <aside className="fixed h-screen w-64 bg-card border-r">
           <div className="flex flex-col h-full">
             <div className="p-6">
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center -space-x-3">
                 <div className="w-20 h-20 flex items-center justify-center">
                   <img src={foxIcon} alt="Aeva Fox" className="w-18 h-18 object-contain" />
                 </div>
