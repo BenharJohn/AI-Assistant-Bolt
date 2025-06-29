@@ -106,8 +106,9 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
   return (
     <div className={`relative ${className}`}>
       <motion.div
-        className={`w-32 h-32 cursor-pointer ${getGlowIntensity()} transition-all duration-300`}
-        onClick={handleClick}
+        className={`w-48 h-48 cursor-pointer ${getGlowIntensity()}`}
+        onClick={toggleListening}
+
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         whileHover={reducedMotion ? {} : { scale: 1.05 }}
@@ -124,11 +125,11 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
             d={generatePath()}
             fill="none"
             stroke="currentColor"
-            strokeWidth={isActive ? "3" : "2"}
+            strokeWidth={isActive ? "4" : "3"}
             strokeLinecap="round"
             strokeLinejoin="round"
             animate={{
-              strokeWidth: isActive ? [2, 3, 2] : 2,
+              strokeWidth: isActive ? [3, 4, 3] : 3,
               opacity: error ? [1, 0.3, 1] : 1
             }}
             transition={{
@@ -148,10 +149,10 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
           <motion.circle
             cx="50"
             cy="50"
-            r={isActive ? "3" : "2"}
+            r={isActive ? "4" : "3"}
             fill="currentColor"
             animate={{
-              r: isActive ? [2, 4, 2] : 2,
+              r: isActive ? [3, 5, 3] : 3,
               opacity: [0.6, 1, 0.6]
             }}
             transition={{
@@ -169,7 +170,8 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
               {[...Array(8)].map((_, i) => (
                 <motion.div
                   key={i}
-                  className={`absolute w-1.5 h-1.5 ${getShapeColor().replace('text-', 'bg-')} rounded-full`}
+                  className={`absolute w-2 h-2 ${getShapeColor().replace('text-', 'bg-')} rounded-full opacity-60`}
+
                   initial={{ 
                     opacity: 0,
                     scale: 0,
@@ -177,8 +179,9 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
                     y: "50%"
                   }}
                   animate={{ 
-                    opacity: [0, 0.8, 0],
-                    scale: [0, 1.2, 0],
+                    opacity: [0, 1, 0],
+                    scale: [0, 1, 0],
+
                     x: ["50%", `${50 + Math.cos(i * 45 * Math.PI / 180) * 80}%`],
                     y: ["50%", `${50 + Math.sin(i * 45 * Math.PI / 180) * 80}%`]
                   }}
@@ -188,7 +191,8 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
                   }}
                   transition={{ 
                     duration: 2.5,
-                    ease: "easeOut",
+                    ease: "easeInOut",
+
                     repeat: Infinity,
                     delay: i * 0.15
                   }}
@@ -203,11 +207,11 @@ const LiveVoiceShape: React.FC<LiveVoiceShapeProps> = ({ className = '' }) => {
       <AnimatePresence>
         {(isHovered || isActive) && (
           <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.9 }}
-            transition={{ duration: 0.2 }}
-            className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 px-3 py-1.5 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap z-10 shadow-lg"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 px-3 py-2 bg-black text-white text-sm rounded-lg whitespace-nowrap z-10"
+
           >
             <div className="text-center">
               {getStatusText()}

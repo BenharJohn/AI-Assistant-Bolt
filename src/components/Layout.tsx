@@ -10,11 +10,12 @@ import {
   Settings, 
   Menu, 
   X,
-  Brain,
   BookHeart,
   Bot
 } from 'lucide-react';
-import LiveVoiceShape from './LiveVoiceShape';
+import foxIcon from '../assets/fox.png';
+import aevaLogo from '../assets/aeva.png';
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -77,11 +78,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen bg-background text-foreground">
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 flex items-center justify-center rounded-xl bg-primary/10">
-            <Brain className="w-5 h-5 text-primary" />
+        <div className="flex items-center -space-x-3">
+          <div className="w-14 h-14 flex items-center justify-center">
+            <img src={foxIcon} alt="Aeva Fox" className="w-13 h-13 object-contain" />
           </div>
-          <h1 className="text-lg font-semibold">FocusAssist</h1>
+          <div className="h-9 flex items-center">
+            <img src={aevaLogo} alt="Aeva" className="h-8 object-contain" />
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           <button 
@@ -127,11 +130,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <aside className="fixed h-screen w-64 bg-card border-r">
           <div className="flex flex-col h-full">
             <div className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10">
-                  <Brain className="w-6 h-6 text-primary" />
+              <div className="flex items-center -space-x-5">
+                <div className="w-20 h-20 flex items-center justify-center">
+                  <img src={foxIcon} alt="Aeva Fox" className="w-18 h-18 object-contain" />
                 </div>
-                <h1 className="text-xl font-semibold">FocusAssist</h1>
+                <div className="h-14 flex items-center">
+                  <img src={aevaLogo} alt="Aeva" className="h-12 object-contain" />
+                </div>
               </div>
             </div>
             
