@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Send, X, Bot, Loader, VolumeX, Volume2 } from 'lucide-react';
+import { Send, X, Bot, Loader, VolumeX, Volume2 } from 'lucide-react';
 import { useAI } from '../context/AIContext';
 import { useSettings } from '../context/SettingsContext';
-import { useTask } from '../context/TaskContext';
 
 const AIAssistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,7 +15,6 @@ const AIAssistant: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const { isProcessing, processUserInput } = useAI();
   const { reducedMotion } = useSettings();
-  const { addTask } = useTask();
 
   const toggleListening = () => {
     if (isListening) {
@@ -39,32 +37,19 @@ const AIAssistant: React.FC = () => {
     setInput('');
 
     try {
-      const response = await processUserInput(userMessage);
+      const response = await processUserInput(userMessage, messages);
       
       if (response.type === 'task') {
-        addTask({
-          title: response.content.title,
-          description: userMessage,
-          dueDate: null,
-          priority: response.content.suggestedPriority,
-          status: 'pending',
-          steps: response.content.steps.map((step: string, index: number) => ({
-            id: `${Date.now()}-${index}`,
-            text: step,
-            completed: false
-          })),
-          tags: ['AI-generated'],
-        });
-        
+        // Display AI's confirmation message about task creation
         setMessages(prev => [
           ...prev, 
           { 
             type: 'assistant', 
-            content: `${response.message} I've created a task with these steps:\n\n${response.content.steps.map((step: string, i: number) => `${i+1}. ${step}`).join('\n')}` 
+            content: response.message || 'I\'ve created a task for you!' 
           }
         ]);
       } else {
-        setMessages(prev => [...prev, { type: 'assistant', content: response.content }]);
+        setMessages(prev => [...prev, { type: 'assistant', content: response.content as string }]);
       }
     } catch (error) {
       setMessages(prev => [...prev, { type: 'assistant', content: 'Sorry, I encountered an error processing your request.' }]);

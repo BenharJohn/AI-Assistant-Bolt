@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState } from 'react';
-import { Task } from './TaskContext'; // Assuming Task type might be needed in the future
 
 // Define the shape of a Flashcard
 export interface Flashcard {
@@ -7,11 +6,27 @@ export interface Flashcard {
   answer: string;
 }
 
+// Define AI Assistant Response structure
+export interface AIAssistantResponse {
+  type: 'text' | 'task';
+  content: string | {
+    title: string;
+    suggestedPriority: 'low' | 'medium' | 'high';
+    steps: string[];
+  };
+  message?: string;
+  toolResult?: {
+    success: boolean;
+    result?: string;
+  };
+}
+
 // Define the functions our AI context will provide
 interface AIContextType {
   isProcessing: boolean;
   getAIResponse: (prompt: string, content?: string) => Promise<string | null>;
   generateFlashcards: (topic: string) => Promise<Flashcard[] | null>;
+  processUserInput: (message: string, history?: Array<{type: 'user' | 'assistant', content: string}>) => Promise<AIAssistantResponse>;
 }
 
 const AIContext = createContext<AIContextType | null>(null);
@@ -93,12 +108,61 @@ export const AIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   };
 
+  // Process user input for AI Assistant
+  const processUserInput = async (message: string, history?: Array<{type: 'user' | 'assistant', content: string}>): Promise<AIAssistantResponse> => {
+    setIsProcessing(true);
+    try {
+      const response = await fetch('/api/ask-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          mode: 'assistant',
+          history: history || []
+        }),
+      });
+
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const data = await response.json();
+      
+      // Check if the response indicates a task creation
+      if (data.toolResult && data.toolResult.success && data.toolResult.result?.includes('task')) {
+        return {
+          type: 'task',
+          content: {
+            title: message, // Use the user's message as the task title
+            suggestedPriority: 'medium',
+            steps: [] // The backend handles actual task creation
+          },
+          message: data.reply || 'Task created successfully!'
+        };
+      }
+      
+      return {
+        type: 'text',
+        content: data.reply || "I'm here to help!",
+        toolResult: data.toolResult
+      };
+
+    } catch (error) {
+      console.error("Failed to process user input:", error);
+      return {
+        type: 'text',
+        content: "Sorry, I encountered an error processing your request."
+      };
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <AIContext.Provider
       value={{
         isProcessing,
         getAIResponse,
         generateFlashcards,
+        processUserInput,
       }}
     >
       {children}

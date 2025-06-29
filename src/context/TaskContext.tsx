@@ -82,22 +82,14 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .from('tasks')
       .select('*')
       .order('status', { 
-        ascending: true,
-        // Custom ordering: completed tasks last, others first
-        foreignTable: undefined,
-        referencedTable: undefined
+        ascending: true
       })
       .order('priority', { 
-        ascending: false,
-        // Custom ordering: high > medium > low  
-        foreignTable: undefined,
-        referencedTable: undefined
+        ascending: false
       })
       .order('due_date', { 
         ascending: true,
-        nullsFirst: false,
-        foreignTable: undefined,
-        referencedTable: undefined
+        nullsFirst: false
       })
       .order('created_at', { ascending: true });
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Type, Volume2, Check } from 'lucide-react';
+import { Eye, Type } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSettings } from '../context/SettingsContext';
 

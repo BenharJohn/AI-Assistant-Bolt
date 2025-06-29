@@ -2,14 +2,12 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
-  FileText, 
   BrainCircuit,
   Loader,
   Copy,
   Check
 } from 'lucide-react';
 import { useAI, Flashcard } from '../context/AIContext';
-import { useSettings } from '../context/SettingsContext';
 
 const LearningTools: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'explain' | 'summarize'>('explain');
@@ -20,7 +18,6 @@ const LearningTools: React.FC = () => {
   const [hasCopied, setHasCopied] = useState(false);
 
   const { isProcessing, getAIResponse, generateFlashcards } = useAI();
-  const { reducedMotion } = useSettings();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

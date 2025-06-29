@@ -42,7 +42,7 @@ export const useSettings = () => {
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Load settings from localStorage or use defaults
-  const [settings, setSettings] = useState(() => {
+  const [settings, setSettings] = useState<typeof defaultSettings>(() => {
     const savedSettings = localStorage.getItem('focusAssistSettings');
     return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
   });
@@ -68,35 +68,35 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [settings]);
 
   const toggleDarkMode = () => {
-    setSettings(prev => ({ ...prev, darkMode: !prev.darkMode }));
+    setSettings((prev: typeof defaultSettings) => ({ ...prev, darkMode: !prev.darkMode }));
   };
 
   const setFontScale = (scale: number) => {
-    setSettings(prev => ({ ...prev, fontScale: scale }));
+    setSettings((prev: typeof defaultSettings) => ({ ...prev, fontScale: scale }));
   };
 
   const setLineSpacing = (spacing: number) => {
-    setSettings(prev => ({ ...prev, lineSpacing: spacing }));
+    setSettings((prev: typeof defaultSettings) => ({ ...prev, lineSpacing: spacing }));
   };
 
   const toggleHighContrast = () => {
-    setSettings(prev => ({ ...prev, highContrast: !prev.highContrast }));
+    setSettings((prev: typeof defaultSettings) => ({ ...prev, highContrast: !prev.highContrast }));
   };
 
   const toggleReducedMotion = () => {
-    setSettings(prev => ({ ...prev, reducedMotion: !prev.reducedMotion }));
+    setSettings((prev: typeof defaultSettings) => ({ ...prev, reducedMotion: !prev.reducedMotion }));
   };
 
   const toggleReadingGuide = () => {
-    setSettings(prev => ({ ...prev, readingGuide: !prev.readingGuide }));
+    setSettings((prev: typeof defaultSettings) => ({ ...prev, readingGuide: !prev.readingGuide }));
   };
 
   const setNotificationStyle = (style: 'visual' | 'audio' | 'both') => {
-    setSettings(prev => ({ ...prev, notificationStyle: style }));
+    setSettings((prev: typeof defaultSettings) => ({ ...prev, notificationStyle: style }));
   };
 
   const toggleFocusSounds = () => {
-    setSettings(prev => ({ ...prev, focusSounds: !prev.focusSounds }));
+    setSettings((prev: typeof defaultSettings) => ({ ...prev, focusSounds: !prev.focusSounds }));
   };
 
   const value = {
