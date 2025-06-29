@@ -138,15 +138,15 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground relative">
-      {/* Bolt.new Badge - NOW POSITIONED IN TOP RIGHT CORNER */}
-      <div className="fixed top-20 right-4 z-30 lg:fixed lg:top-6 lg:right-6 lg:z-20">
+      {/* Bolt.new Badge - ADJUSTED: Further right, lower, and bigger on desktop */}
+      <div className="fixed top-24 right-2 z-30 lg:fixed lg:top-10 lg:right-2 lg:z-20">
         <div className="lg:hidden">
-          {/* On mobile, positioned below header to avoid menu interference */}
+          {/* On mobile, positioned to avoid menu interference */}
           <BoltBadge size="sm" className="shadow-lg" />
         </div>
         <div className="hidden lg:block">
-          {/* On desktop, positioned in clean top right corner */}
-          <BoltBadge size="md" className="shadow-lg" />
+          {/* On desktop, bigger size and adjusted position */}
+          <BoltBadge size="lg" className="shadow-lg" />
         </div>
       </div>
 
