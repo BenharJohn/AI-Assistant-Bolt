@@ -5,7 +5,7 @@ import boltLogoBlack from '../assets/black_circle_360x360.png';
 interface BoltBadgeProps {
   variant?: 'black' | 'white' | 'text';
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 const BoltBadge: React.FC<BoltBadgeProps> = ({ 
@@ -18,16 +18,17 @@ const BoltBadge: React.FC<BoltBadgeProps> = ({
   };
 
   const sizeClasses = {
-    sm: 'w-8 h-8',
-    md: 'w-10 h-10', 
-    lg: 'w-12 h-12'
+    sm: 'w-10 h-10',
+    md: 'w-12 h-12', 
+    lg: 'w-16 h-16',
+    xl: 'w-20 h-20'
   };
 
   if (variant === 'text') {
     return (
       <button
         onClick={handleClick}
-        className={`inline-flex items-center px-3 py-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 ${className}`}
+        className={`inline-flex items-center px-4 py-2 text-base font-medium text-foreground hover:text-primary transition-colors duration-200 ${className}`}
         aria-label="Built with Bolt.new"
       >
         Built with Bolt
