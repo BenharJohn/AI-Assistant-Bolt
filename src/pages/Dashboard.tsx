@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-
 import { motion } from 'framer-motion';
 import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -21,39 +20,51 @@ const Dashboard: React.FC = () => {
   const [hasPlayedGreeting, setHasPlayedGreeting] = useState(false);
   const today = new Date();
 
-  // Play greeting on first load
+  // Play greeting on first load - IMPROVED VERSION
   useEffect(() => {
     const playGreeting = async () => {
-      // Check if we've already played a greeting in this session
-      const sessionKey = 'greeting_played_' + new Date().toDateString();
-      if (sessionStorage.getItem(sessionKey) || hasPlayedGreeting) {
+      // More specific session key to prevent conflicts
+      const sessionKey = `aeva_greeting_${new Date().toDateString()}_${Date.now()}`;
+      const todayKey = `aeva_greeting_today_${new Date().toDateString()}`;
+      
+      // Check if we've already played a greeting today OR in this session
+      if (sessionStorage.getItem(todayKey) || hasPlayedGreeting) {
         return;
       }
 
-      // Wait a moment for the component to fully load
-      setTimeout(async () => {
-        const hour = today.getHours();
-        let greeting = '';
-        
-        if (hour < 12) {
-          greeting = 'Good morning! Ready to make today productive?';
-        } else if (hour < 17) {
-          greeting = 'Good afternoon! How can I help you stay focused today?';
-        } else {
-          greeting = 'Good evening! Let\'s wrap up the day strong.';
-        }
-
+      // Wait for the component to fully load and voice system to initialize
+      const timeoutId = setTimeout(async () => {
         try {
+          const hour = today.getHours();
+          let greeting = '';
+          
+          if (hour < 12) {
+            greeting = 'Good morning! I\'m Aeva, your AI companion. Ready to make today productive?';
+          } else if (hour < 17) {
+            greeting = 'Good afternoon! I\'m Aeva. How can I help you stay focused today?';
+          } else {
+            greeting = 'Good evening! I\'m Aeva, your AI assistant. Let\'s wrap up the day strong.';
+          }
+
           await convertTextToSpeech(greeting);
-          sessionStorage.setItem(sessionKey, 'true');
+          
+          // Mark as played for today
+          sessionStorage.setItem(todayKey, 'true');
           setHasPlayedGreeting(true);
+          
         } catch (error) {
-          console.log('Greeting playback failed:', error);
+          console.log('Greeting playback failed - this is normal if user hasn\'t interacted yet:', error);
         }
-      }, 2000); // 2 second delay to let the page load
+      }, 3000); // 3 second delay
+
+      // Cleanup timeout if component unmounts
+      return () => clearTimeout(timeoutId);
     };
 
-    playGreeting();
+    // Only play greeting if user is on dashboard for the first time today
+    if (!hasPlayedGreeting) {
+      playGreeting();
+    }
   }, [convertTextToSpeech, today, hasPlayedGreeting]);
 
   // Calculate stats based on actual database fields
@@ -139,7 +150,6 @@ const Dashboard: React.FC = () => {
           {/* On desktop, normal positioning */}
           <BoltBadge size="lg" className="shadow-lg" />
         </div>
-
       </div>
 
       <motion.div

@@ -40,6 +40,7 @@ export const useVoiceAI = () => {
   const silenceTimerRef = useRef<number | null>(null);
   const vadIntervalRef = useRef<number | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const autoRestartTimeoutRef = useRef<number | null>(null);
 
   const updateState = useCallback((updates: Partial<VoiceAIState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -115,6 +116,10 @@ export const useVoiceAI = () => {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
+    if (autoRestartTimeoutRef.current) {
+      clearTimeout(autoRestartTimeoutRef.current);
+      autoRestartTimeoutRef.current = null;
+    }
     analyserRef.current = null;
   }, []);
 
@@ -126,6 +131,12 @@ export const useVoiceAI = () => {
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
         currentAudioRef.current = null;
+      }
+      
+      // Clear any pending auto-restart
+      if (autoRestartTimeoutRef.current) {
+        clearTimeout(autoRestartTimeoutRef.current);
+        autoRestartTimeoutRef.current = null;
       }
       
       if (!(await initializeAudio())) return;
@@ -274,111 +285,107 @@ export const useVoiceAI = () => {
         body: JSON.stringify({ text })
       });
 
-      if (!ttsResponse.ok) throw new Error('Text-to-speech failed');
+      if (!ttsResponse.ok) {
+        console.error('TTS request failed, using fallback');
+        throw new Error('Text-to-speech service failed');
+      }
 
-      const responseData = await ttsResponse.json();
+      // Check content type to determine response format
+      const contentType = ttsResponse.headers.get('content-type');
       
-      // Check if we should use Web Speech API fallback
-      if (responseData.useWebSpeech) {
-        console.log('Using Web Speech API fallback');
+      if (contentType?.includes('application/json')) {
+        // This is a JSON response with fallback instructions
+        const responseData = await ttsResponse.json();
         
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(responseData.text || text);
-          utterance.rate = 0.9;
-          utterance.pitch = 1.0;
-          utterance.volume = 0.8;
+        if (responseData.useWebSpeech) {
+          console.log('Using Web Speech API fallback');
           
-          // Try to use a good quality voice
-          const voices = speechSynthesis.getVoices();
-          const preferredVoice = voices.find(voice => 
-            voice.name.includes('Google') || 
-            voice.name.includes('Microsoft') || 
-            voice.name.includes('Alex') ||
-            voice.name.includes('Samantha')
-          );
-          if (preferredVoice) {
-            utterance.voice = preferredVoice;
-          }
-          
-          utterance.onend = () => {
-            updateState({ isPlaying: false });
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(responseData.text || text);
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 0.8;
             
-            // AUTO-RESTART: Start listening again after AI finishes speaking
-            const continuousPages = ['/', '/journal', '/companion'];
-            if (continuousPages.includes(location.pathname)) {
-              setTimeout(() => {
-                if (!state.isProcessing && !state.isPlaying) {
-                  startListening();
-                }
-              }, 500);
+            // Try to use a good quality voice
+            const voices = speechSynthesis.getVoices();
+            const preferredVoice = voices.find(voice => 
+              voice.name.includes('Google') || 
+              voice.name.includes('Microsoft') || 
+              voice.name.includes('Alex') ||
+              voice.name.includes('Samantha')
+            );
+            if (preferredVoice) {
+              utterance.voice = preferredVoice;
             }
-          };
-          
-          utterance.onerror = () => {
-            updateState({ isPlaying: false, error: 'Could not play audio response' });
-          };
-          
-          speechSynthesis.speak(utterance);
-        } else {
-          throw new Error('Web Speech API not supported');
+            
+            utterance.onend = () => {
+              updateState({ isPlaying: false });
+              
+              // IMPROVED AUTO-RESTART: Only restart on dashboard and ONLY if user initiated the conversation
+              if (location.pathname === '/' && !text.includes('Good morning') && !text.includes('Good afternoon') && !text.includes('Good evening')) {
+                autoRestartTimeoutRef.current = setTimeout(() => {
+                  if (!state.isProcessing && !state.isPlaying && !state.isListening) {
+                    startListening();
+                  }
+                }, 1000); // 1 second delay
+              }
+            };
+            
+            utterance.onerror = () => {
+              updateState({ isPlaying: false, error: 'Could not play audio response' });
+            };
+            
+            // Cancel any ongoing speech before starting new one
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+            return;
+          } else {
+            throw new Error('Web Speech API not supported');
+          }
         }
+      } else if (contentType?.includes('audio/')) {
+        // This is actual audio content from Eleven Labs
+        console.log('Using Eleven Labs audio');
         
+        const audioBlob = await ttsResponse.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        // Store reference to current audio
+        currentAudioRef.current = audio;
+        
+        audio.onended = () => {
+          updateState({ isPlaying: false });
+          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
+          
+          // IMPROVED AUTO-RESTART: Only restart on dashboard and ONLY if user initiated the conversation
+          if (location.pathname === '/' && !text.includes('Good morning') && !text.includes('Good afternoon') && !text.includes('Good evening')) {
+            autoRestartTimeoutRef.current = setTimeout(() => {
+              if (!state.isProcessing && !state.isPlaying && !state.isListening) {
+                startListening();
+              }
+            }, 1000); // 1 second delay
+          }
+        };
+        
+        audio.onerror = () => {
+          updateState({ isPlaying: false, error: 'Could not play audio response' });
+          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
+        };
+
+        await audio.play();
         return;
       }
 
-      // Handle Eleven Labs audio response
-      const audioBlob = await ttsResponse.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      
-      audio.onended = () => {
-        updateState({ isPlaying: false });
-        URL.revokeObjectURL(audioUrl);
-        
-        // AUTO-RESTART: Start listening again after AI finishes speaking
-        const continuousPages = ['/', '/journal', '/companion'];
-        if (continuousPages.includes(location.pathname)) {
-          setTimeout(() => {
-            if (!state.isProcessing && !state.isPlaying) {
-              startListening();
-            }
-          }, 500);
-
-        }
-        
-        utterance.onend = () => {
-          updateState({ isPlaying: false });
-          currentAudioRef.current = null;
-          
-          // AUTO-RESTART: Start listening again after AI finishes speaking
-          const continuousPages = ['/', '/journal', '/companion'];
-          if (continuousPages.includes(location.pathname)) {
-            setTimeout(() => {
-              if (!state.isProcessing && !state.isPlaying) {
-                startListening();
-              }
-            }, 800); // Slightly longer delay for smoother experience
-          }
-        };
-        
-        utterance.onerror = (event) => {
-          console.error('Speech synthesis error:', event);
-          updateState({ isPlaying: false, error: 'Could not play audio response' });
-          currentAudioRef.current = null;
-        };
-
-        // Cancel any ongoing speech before starting new one
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
-      } else {
-        throw new Error('Speech synthesis not supported');
-      }
+      throw new Error('Unexpected response format');
 
     } catch (error) {
       console.error('Text-to-speech failed:', error);
       updateState({ isPlaying: false, error: 'Could not generate speech response' });
     }
-  }, [updateState, location.pathname, startListening, state.isProcessing, state.isPlaying]);
+  }, [updateState, location.pathname, startListening, state.isProcessing, state.isPlaying, state.isListening]);
 
   const toggleListening = useCallback(() => {
     if (state.isListening) {
@@ -407,13 +414,19 @@ export const useVoiceAI = () => {
     };
   }, [cleanupVAD]);
 
-  // Handle page changes - stop any ongoing audio
+  // Handle page changes - stop any ongoing audio and auto-restart
   useEffect(() => {
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
     window.speechSynthesis.cancel();
+    
+    // Clear any pending auto-restart when changing pages
+    if (autoRestartTimeoutRef.current) {
+      clearTimeout(autoRestartTimeoutRef.current);
+      autoRestartTimeoutRef.current = null;
+    }
     
     if (state.isPlaying) {
       updateState({ isPlaying: false });
@@ -426,6 +439,5 @@ export const useVoiceAI = () => {
     clearError,
     convertTextToSpeech, // Export this for the greeting functionality
     isActive: state.isListening || state.isProcessing || state.isPlaying 
-
   };
 };

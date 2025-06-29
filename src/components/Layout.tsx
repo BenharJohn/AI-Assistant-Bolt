@@ -1,4 +1,3 @@
-/// layout.tsx
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -13,9 +12,7 @@ import {
   BookHeart,
   Bot
 } from 'lucide-react';
-import foxIcon from '../assets/fox.png';
-import aevaLogo from '../assets/aeva.png';
-
+import LiveVoiceShape from './LiveVoiceShape';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -78,13 +75,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen bg-background text-foreground">
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 bg-card border-b">
-        <div className="flex items-center -space-x-3">
-          <div className="w-14 h-14 flex items-center justify-center">
-            <img src={foxIcon} alt="Aeva Fox" className="w-13 h-13 object-contain" />
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10">
+            <Bot className="w-6 h-6 text-primary" />
           </div>
-          <div className="h-9 flex items-center">
-            <img src={aevaLogo} alt="Aeva" className="h-8 object-contain" />
-          </div>
+          <h1 className="text-lg font-semibold">Aeva</h1>
         </div>
         <div className="flex items-center space-x-2">
           <button 
@@ -130,13 +125,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <aside className="fixed h-screen w-64 bg-card border-r">
           <div className="flex flex-col h-full">
             <div className="p-6">
-              <div className="flex items-center -space-x-5">
-                <div className="w-20 h-20 flex items-center justify-center">
-                  <img src={foxIcon} alt="Aeva Fox" className="w-18 h-18 object-contain" />
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-primary/10">
+                  <Bot className="w-7 h-7 text-primary" />
                 </div>
-                <div className="h-14 flex items-center">
-                  <img src={aevaLogo} alt="Aeva" className="h-12 object-contain" />
-                </div>
+                <h1 className="text-xl font-semibold">Aeva</h1>
               </div>
             </div>
             
