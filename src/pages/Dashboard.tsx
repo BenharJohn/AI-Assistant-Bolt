@@ -139,7 +139,7 @@ const Dashboard: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground relative">
       {/* Bolt.new Badge - ADJUSTED: Further right, lower, and bigger on desktop */}
-      <div className="fixed top-24 right-2 z-30 lg:fixed lg:top-10 lg:right-10 lg:z-20">
+      <div className="fixed top-24 right-2 z-30 lg:fixed lg:top-20 lg:right-20 lg:z-20">
         <div className="lg:hidden">
           {/* On mobile, positioned to avoid menu interference */}
           <BoltBadge size="sm" className="shadow-lg" />
