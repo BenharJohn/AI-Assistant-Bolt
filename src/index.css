@@ -36,6 +36,11 @@
   
   body {
     @apply bg-background text-foreground antialiased;
+    /* Improve hardware acceleration for smoother transitions */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
   }
 
   /* Smooth transitions for interactive elements */
@@ -62,27 +67,61 @@
     @apply w-5 h-5 rounded-full bg-white shadow-lg cursor-pointer border-2 border-primary;
     border: 2px solid hsl(12, 53%, 66%);
   }
+
+  /* Improve scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary-hover rounded-xl px-6 py-3 font-medium shadow-soft hover:shadow-warm transition-all duration-300;
+    @apply bg-primary text-primary-foreground hover:bg-primary-hover rounded-xl px-6 py-3 font-medium shadow-soft hover:shadow-warm transition-all duration-300 transform hover:scale-105 active:scale-95;
   }
 
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary-hover rounded-xl px-6 py-3 font-medium shadow-soft hover:shadow-warm transition-all duration-300;
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary-hover rounded-xl px-6 py-3 font-medium shadow-soft hover:shadow-warm transition-all duration-300 transform hover:scale-105 active:scale-95;
   }
 
   .card {
-    @apply bg-card rounded-2xl border border-appBorder p-6 shadow-soft hover:shadow-warm transition-all duration-300;
+    @apply bg-card rounded-2xl border border-appBorder p-6 shadow-soft hover:shadow-warm transition-all duration-300 transform hover:scale-[1.02];
   }
 
   .nav-link {
-    @apply text-foreground/80 hover:text-foreground px-4 py-2 rounded-xl transition-all duration-200 hover:bg-secondary/10;
+    @apply text-foreground/80 hover:text-foreground px-4 py-2 rounded-xl transition-all duration-200 hover:bg-secondary/10 transform hover:scale-105;
   }
 
   .input-warm {
     @apply bg-card border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all duration-200;
+  }
+
+  /* Enhanced loading states */
+  .skeleton {
+    @apply bg-muted animate-pulse rounded-xl;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4;
+  }
+
+  .skeleton-title {
+    @apply skeleton h-6;
+  }
+
+  .skeleton-avatar {
+    @apply skeleton w-12 h-12 rounded-full;
   }
 }
 
@@ -95,6 +134,32 @@
   .bg-gradient-radial {
     background: radial-gradient(ellipse at center, var(--tw-gradient-stops));
   }
+
+  /* Hardware acceleration utilities */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* Premium transition utilities */
+  .transition-premium {
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .transition-bounce {
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  /* Smooth hover effects */
+  .hover-lift {
+    @apply transform transition-all duration-300 hover:scale-105 hover:shadow-warm;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300 hover:shadow-lg hover:shadow-primary/25;
+  }
 }
 
 /* Organic animations */
@@ -103,6 +168,51 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(var(--primary), 0.4);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 0 10px rgba(var(--primary), 0);
+    transform: scale(1.02);
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 .animate-gentle {
   animation: gentle-fade 0.6s ease-out forwards;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
