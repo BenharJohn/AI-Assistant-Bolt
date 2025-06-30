@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Volume2, VolumeX, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
-import { supabase } from '../supabaseClient'; // <--- 1. IMPORT THE SUPABASE CLIENT
+import { useVoiceAI } from '../hooks/useVoiceAI';
+import { supabase } from '../supabaseClient';
 
 // Define the type for our journal entries for clarity
 type JournalEntry = {
@@ -13,13 +14,23 @@ type JournalEntry = {
 const Journal: React.FC = () => {
   const [entries, setEntries] = useState<Array<JournalEntry>>([]); // Start with an empty array
   const [input, setInput] = useState('');
-  const [isListening, setIsListening] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { reducedMotion } = useSettings();
+  
+  // Use the real voice AI hook
+  const {
+    isListening,
+    isProcessing: voiceProcessing,
+    isPlaying,
+    error: voiceError,
+    toggleListening,
+    clearError,
+    isActive: voiceActive
+  } = useVoiceAI();
 
-  // --- vvv 2. NEW: FETCH ENTRIES ON LOAD vvv ---
+  // Fetch entries on load
   useEffect(() => {
     const fetchEntries = async () => {
       // Fetch all entries from the 'journal_entries' table, ordered by creation time
@@ -46,10 +57,9 @@ const Journal: React.FC = () => {
     };
 
     fetchEntries();
-  }, []); // The empty array [] means this effect runs only once when the component mounts
+  }, []);
 
-
-  // Scroll to bottom effect remains the same
+  // Scroll to bottom effect
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: reducedMotion ? 'auto' : 'smooth'
@@ -60,30 +70,14 @@ const Journal: React.FC = () => {
     scrollToBottom();
   }, [entries, reducedMotion]);
 
-  // toggleListening remains the same
-  const toggleListening = () => {
-    setIsListening(!isListening);
-    if (!isListening) {
-      setTimeout(() => {
-        setInput("I'm feeling a bit overwhelmed with all my tasks today");
-        setIsListening(false);
-      }, 2000);
-    }
-  };
-
-
-
-
-
-// --- vvv THIS IS THE ONLY FUNCTION THAT CHANGES vvv ---
-const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim() || isProcessing) return;
 
     const userEntryContent = input.trim();
     const userEntry: JournalEntry = { type: 'user', content: userEntryContent };
 
-    // --- NEW: Get the last 5 entries from the current state to send as history ---
+    // Get the last 5 entries from the current state to send as history
     const recentHistory = entries.slice(-5);
 
     // Optimistically update UI
@@ -92,7 +86,7 @@ const handleSubmit = async (e?: React.FormEvent) => {
     setIsProcessing(true);
 
     try {
-      // --- MODIFIED: Send both the new message AND the recent history ---
+      // Send both the new message AND the recent history
       const response = await fetch('/api/ask-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,7 +105,7 @@ const handleSubmit = async (e?: React.FormEvent) => {
       
       setEntries(prev => [...prev, aiEntry]);
 
-      // The logic to save to Supabase remains the same and is still correct.
+      // Save to Supabase
       const { error: insertError } = await supabase.from('journal_entries').insert([
         { role: 'user', content: userEntryContent },
         { role: 'ai', content: aiResponseContent }
@@ -129,22 +123,23 @@ const handleSubmit = async (e?: React.FormEvent) => {
       setIsProcessing(false);
     }
   };
-
-
-
-
-
-
-
-
-
-
   
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
 
-  // The rest of your JSX remains the same as your previously themed version
+  // Get the appropriate mic button state and styling
+  const getMicButtonState = () => {
+    if (voiceError) return { icon: Mic, className: 'text-red-500 hover:bg-red-50', disabled: false };
+    if (voiceProcessing || isProcessing) return { icon: Sparkles, className: 'text-primary animate-pulse', disabled: true };
+    if (isListening) return { icon: VolumeX, className: 'bg-primary/80 text-primary-foreground', disabled: false };
+    if (isPlaying) return { icon: Volume2, className: 'bg-secondary/80 text-secondary-foreground animate-pulse', disabled: true };
+    return { icon: Mic, className: 'text-muted-foreground hover:bg-muted/60', disabled: false };
+  };
+
+  const micState = getMicButtonState();
+  const MicIcon = micState.icon;
+
   return (
     <div className={`container mx-auto px-4 py-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       <div className="max-w-2xl mx-auto">
@@ -168,7 +163,7 @@ const handleSubmit = async (e?: React.FormEvent) => {
               <AnimatePresence mode="popLayout">
                 {entries.map((entry, index) => (
                   <motion.div
-                    key={index} // Using index is okay for a simple append-only list
+                    key={index}
                     initial={{ opacity: 0, y: reducedMotion ? 0 : 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: reducedMotion ? 0 : -20 }}
@@ -187,7 +182,7 @@ const handleSubmit = async (e?: React.FormEvent) => {
                     </div>
                   </motion.div>
                 ))}
-                {isProcessing && (
+                {(isProcessing || voiceProcessing) && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -195,7 +190,9 @@ const handleSubmit = async (e?: React.FormEvent) => {
                     className="flex items-center space-x-2 text-muted-foreground pl-1"
                   >
                     <Sparkles className="w-4 h-4 animate-pulse text-primary" />
-                    <span className="text-sm font-serif">Reflecting...</span>
+                    <span className="text-sm font-serif">
+                      {voiceProcessing ? 'Processing your voice...' : 'Reflecting...'}
+                    </span>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -206,31 +203,51 @@ const handleSubmit = async (e?: React.FormEvent) => {
               <form onSubmit={handleSubmit} className="flex items-end space-x-3">
                 <button
                   type="button"
-                  onClick={toggleListening}
-                  aria-label={isListening ? "Stop listening" : "Start listening"}
-                  className={`p-3 rounded-xl transition-colors duration-200 ${
-                    isListening
-                      ? 'bg-primary/80 text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted/60'
-                  }`}
+                  onClick={() => {
+                    if (voiceError) {
+                      clearError();
+                    }
+                    toggleListening();
+                  }}
+                  disabled={micState.disabled}
+                  aria-label={
+                    voiceError ? "Clear error and try again" :
+                    isListening ? "Stop listening" : 
+                    isPlaying ? "AI is speaking" :
+                    "Start voice input"
+                  }
+                  className={`p-3 rounded-xl transition-colors duration-200 disabled:cursor-not-allowed ${micState.className}`}
+                  title={
+                    voiceError ? `Error: ${voiceError}` :
+                    isListening ? "Listening to your voice..." :
+                    isPlaying ? "AI is speaking..." :
+                    voiceProcessing ? "Processing your voice..." :
+                    "Click to start voice input"
+                  }
                 >
-                  {isListening ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                  <MicIcon size={20} />
                 </button>
                 <div className="flex-1">
                   <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="What's on your mind?"
-                    className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground"
+                    placeholder={
+                      isListening ? "Listening..." :
+                      voiceProcessing ? "Processing voice..." :
+                      isPlaying ? "AI is responding..." :
+                      "What's on your mind?"
+                    }
+                    disabled={isListening || voiceProcessing || isPlaying}
+                    className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground disabled:opacity-50"
                   />
                 </div>
                 <button
                   type="submit"
-                  disabled={!input.trim() || isProcessing}
+                  disabled={!input.trim() || isProcessing || voiceProcessing || isListening || isPlaying}
                   aria-label="Send message"
                   className={`p-3 rounded-xl transition-colors duration-200 ${
-                    !input.trim() || isProcessing
+                    !input.trim() || isProcessing || voiceProcessing || isListening || isPlaying
                       ? 'text-muted-foreground/50 cursor-not-allowed'
                       : 'text-primary hover:bg-primary/10'
                   }`}
@@ -238,6 +255,23 @@ const handleSubmit = async (e?: React.FormEvent) => {
                   <Mic size={20} />
                 </button>
               </form>
+              
+              {/* Voice status indicator */}
+              {(voiceActive || voiceError) && (
+                <div className="mt-2 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    {voiceError ? (
+                      <span className="text-red-500">Voice error: {voiceError}</span>
+                    ) : isListening ? (
+                      <span className="text-primary">🎤 Listening... Speak into your microphone</span>
+                    ) : voiceProcessing ? (
+                      <span className="text-primary">🤔 Processing your voice...</span>
+                    ) : isPlaying ? (
+                      <span className="text-secondary">🔊 AI is responding...</span>
+                    ) : null}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
