@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Volume2, VolumeX, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
+import { Mic, Volume2, VolumeX, Sparkles, Maximize2, Minimize2, MicOff, Loader } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
-import { supabase } from '../supabaseClient'; // <--- 1. IMPORT THE SUPABASE CLIENT
+import { useVoiceAI } from '../hooks/useVoiceAI';
+import { supabase } from '../supabaseClient';
 
 // Define the type for our journal entries for clarity
 type JournalEntry = {
@@ -13,16 +14,26 @@ type JournalEntry = {
 const Journal: React.FC = () => {
   const [entries, setEntries] = useState<Array<JournalEntry>>([]); // Start with an empty array
   const [input, setInput] = useState('');
-  const [isListening, setIsListening] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { reducedMotion } = useSettings();
+  
+  // Voice AI integration
+  const {
+    isListening,
+    isProcessing: isVoiceProcessing,
+    isPlaying,
+    error: voiceError,
+    toggleListening,
+    clearError,
+    convertTextToSpeech,
+    isActive: isVoiceActive
+  } = useVoiceAI();
 
-  // --- vvv 2. NEW: FETCH ENTRIES ON LOAD vvv ---
+  // Fetch entries on load
   useEffect(() => {
     const fetchEntries = async () => {
-      // Fetch all entries from the 'journal_entries' table, ordered by creation time
       const { data, error } = await supabase
         .from('journal_entries')
         .select('role, content')
@@ -30,26 +41,22 @@ const Journal: React.FC = () => {
 
       if (error) {
         console.error('Error fetching journal entries:', error);
-        // If fetching fails, still provide the welcome message.
         setEntries([{ type: 'ai', content: '⟡ Welcome! I couldn\'t load our past conversation, but we can start fresh.' }]);
       } else if (data && data.length > 0) {
-        // We need to cast the role to fit our JournalEntry type
         const formattedEntries = data.map(entry => ({
           type: entry.role as 'user' | 'ai',
           content: entry.content
         }));
         setEntries(formattedEntries);
       } else {
-        // If there are no entries in the database, add the initial welcome message
         setEntries([{ type: 'ai', content: '⟡ Welcome to your safe space. How are you feeling today?' }]);
       }
     };
 
     fetchEntries();
-  }, []); // The empty array [] means this effect runs only once when the component mounts
+  }, []);
 
-
-  // Scroll to bottom effect remains the same
+  // Scroll to bottom effect
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: reducedMotion ? 'auto' : 'smooth'
@@ -60,39 +67,26 @@ const Journal: React.FC = () => {
     scrollToBottom();
   }, [entries, reducedMotion]);
 
-  // toggleListening remains the same
-  const toggleListening = () => {
-    setIsListening(!isListening);
-    if (!isListening) {
-      setTimeout(() => {
-        setInput("I'm feeling a bit overwhelmed with all my tasks today");
-        setIsListening(false);
-      }, 2000);
-    }
-  };
+  // Handle voice input completion
+  useEffect(() => {
+    // This will be handled by the voice AI hook automatically
+    // The hook handles transcription and sends to the appropriate API
+  }, []);
 
-
-
-
-
-// --- vvv THIS IS THE ONLY FUNCTION THAT CHANGES vvv ---
-const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!input.trim() || isProcessing) return;
+    if (!input.trim() || isProcessing || isVoiceActive) return;
 
     const userEntryContent = input.trim();
     const userEntry: JournalEntry = { type: 'user', content: userEntryContent };
 
-    // --- NEW: Get the last 5 entries from the current state to send as history ---
     const recentHistory = entries.slice(-5);
 
-    // Optimistically update UI
     setEntries(prev => [...prev, userEntry]);
     setInput('');
     setIsProcessing(true);
 
     try {
-      // --- MODIFIED: Send both the new message AND the recent history ---
       const response = await fetch('/api/ask-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,7 +105,7 @@ const handleSubmit = async (e?: React.FormEvent) => {
       
       setEntries(prev => [...prev, aiEntry]);
 
-      // The logic to save to Supabase remains the same and is still correct.
+      // Save to Supabase
       const { error: insertError } = await supabase.from('journal_entries').insert([
         { role: 'user', content: userEntryContent },
         { role: 'ai', content: aiResponseContent }
@@ -119,6 +113,13 @@ const handleSubmit = async (e?: React.FormEvent) => {
 
       if (insertError) {
         console.error('Error saving entries to Supabase:', insertError);
+      }
+
+      // Convert AI response to speech
+      try {
+        await convertTextToSpeech(aiResponseContent);
+      } catch (speechError) {
+        console.log('Speech synthesis failed, continuing without audio:', speechError);
       }
 
     } catch (error) {
@@ -130,21 +131,51 @@ const handleSubmit = async (e?: React.FormEvent) => {
     }
   };
 
-
-
-
-
-
-
-
-
-
-  
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
 
-  // The rest of your JSX remains the same as your previously themed version
+  const getMicIcon = () => {
+    if (isVoiceProcessing) return <Loader size={20} className="animate-spin" />;
+    if (isPlaying) return <Volume2 size={20} />;
+    if (isListening) return <MicOff size={20} />;
+    return <Mic size={20} />;
+  };
+
+  const getMicButtonClass = () => {
+    if (voiceError) return 'bg-red-500 text-white hover:bg-red-600';
+    if (isListening) return 'bg-primary text-primary-foreground hover:bg-primary/90 animate-pulse';
+    if (isVoiceProcessing) return 'bg-secondary text-secondary-foreground';
+    if (isPlaying) return 'bg-accent text-accent-foreground animate-pulse';
+    return 'text-muted-foreground hover:bg-muted/60 hover:text-foreground';
+  };
+
+  const getVoiceStatusText = () => {
+    if (voiceError) return 'Tap to retry';
+    if (isListening) return 'Listening...';
+    if (isVoiceProcessing) return 'Processing...';
+    if (isPlaying) return 'Speaking...';
+    return 'Tap to speak';
+  };
+
+  const handleVoiceClick = () => {
+    if (voiceError) {
+      clearError();
+    }
+    toggleListening();
+  };
+
+  // Handle replaying AI responses
+  const handleReplayResponse = async (content: string) => {
+    if (!isVoiceActive) {
+      try {
+        await convertTextToSpeech(content);
+      } catch (error) {
+        console.log('Speech synthesis failed:', error);
+      }
+    }
+  };
+
   return (
     <div className={`container mx-auto px-4 py-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       <div className="max-w-2xl mx-auto">
@@ -168,15 +199,15 @@ const handleSubmit = async (e?: React.FormEvent) => {
               <AnimatePresence mode="popLayout">
                 {entries.map((entry, index) => (
                   <motion.div
-                    key={index} // Using index is okay for a simple append-only list
+                    key={index}
                     initial={{ opacity: 0, y: reducedMotion ? 0 : 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: reducedMotion ? 0 : -20 }}
                     transition={{ duration: reducedMotion ? 0.1 : 0.3 }}
-                    className={`max-w-[85%] ${entry.type === 'user' ? 'ml-auto text-right' : ''}`}
+                    className={`max-w-[85%] group ${entry.type === 'user' ? 'ml-auto text-right' : ''}`}
                   >
                     <div
-                      className={`inline-block text-left font-serif text-lg rounded-xl px-3 py-2 ${
+                      className={`inline-block text-left font-serif text-lg rounded-xl px-3 py-2 relative ${
                         entry.type === 'user'
                           ? 'bg-primary/10 text-foreground'
                           : 'text-muted-foreground pl-1'
@@ -184,10 +215,22 @@ const handleSubmit = async (e?: React.FormEvent) => {
                     >
                       {entry.content.startsWith('⟡') && <span className="text-primary mr-1.5">{entry.content[0]}</span>}
                       {entry.content.startsWith('⟡') ? entry.content.substring(1).trimStart() : entry.content}
+                      
+                      {/* Playback button for AI responses */}
+                      {entry.type === 'ai' && (
+                        <button
+                          onClick={() => handleReplayResponse(entry.content)}
+                          disabled={isVoiceActive}
+                          className="absolute -right-1 -top-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full bg-primary/20 hover:bg-primary/30 text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Play this response"
+                        >
+                          <Volume2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 ))}
-                {isProcessing && (
+                {(isProcessing || isVoiceProcessing) && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -195,7 +238,9 @@ const handleSubmit = async (e?: React.FormEvent) => {
                     className="flex items-center space-x-2 text-muted-foreground pl-1"
                   >
                     <Sparkles className="w-4 h-4 animate-pulse text-primary" />
-                    <span className="text-sm font-serif">Reflecting...</span>
+                    <span className="text-sm font-serif">
+                      {isVoiceProcessing ? 'Processing your voice...' : 'Reflecting...'}
+                    </span>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -203,41 +248,83 @@ const handleSubmit = async (e?: React.FormEvent) => {
             </div>
 
             <div className="p-4 border-t border-appBorder bg-background/80 backdrop-blur-sm">
+              {/* Voice status indicator */}
+              <AnimatePresence>
+                {isVoiceActive && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-3 text-center"
+                  >
+                    <div className="inline-flex items-center space-x-2 px-3 py-1 bg-primary/10 rounded-full text-sm text-primary">
+                      {getMicIcon()}
+                      <span>{getVoiceStatusText()}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Voice error display */}
+              <AnimatePresence>
+                {voiceError && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-3 text-center"
+                  >
+                    <div className="inline-flex items-center space-x-2 px-3 py-1 bg-red-50 dark:bg-red-900/20 rounded-full text-sm text-red-600 dark:text-red-400">
+                      <span>⚠️ {voiceError}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <form onSubmit={handleSubmit} className="flex items-end space-x-3">
-                <button
+                <motion.button
                   type="button"
-                  onClick={toggleListening}
-                  aria-label={isListening ? "Stop listening" : "Start listening"}
-                  className={`p-3 rounded-xl transition-colors duration-200 ${
-                    isListening
-                      ? 'bg-primary/80 text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted/60'
-                  }`}
+                  onClick={handleVoiceClick}
+                  disabled={isProcessing && !voiceError}
+                  aria-label={getVoiceStatusText()}
+                  className={`p-3 rounded-xl transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${getMicButtonClass()}`}
+                  whileHover={reducedMotion ? {} : { scale: 1.05 }}
+                  whileTap={reducedMotion ? {} : { scale: 0.95 }}
                 >
-                  {isListening ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                </button>
+                  {getMicIcon()}
+                </motion.button>
+                
                 <div className="flex-1">
                   <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="What's on your mind?"
-                    className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground"
+                    placeholder={isVoiceActive ? "Voice input active..." : "What's on your mind?"}
+                    disabled={isVoiceActive}
+                    className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground disabled:opacity-60"
                   />
                 </div>
+                
                 <button
                   type="submit"
-                  disabled={!input.trim() || isProcessing}
+                  disabled={!input.trim() || isProcessing || isVoiceActive}
                   aria-label="Send message"
                   className={`p-3 rounded-xl transition-colors duration-200 ${
-                    !input.trim() || isProcessing
+                    !input.trim() || isProcessing || isVoiceActive
                       ? 'text-muted-foreground/50 cursor-not-allowed'
                       : 'text-primary hover:bg-primary/10'
                   }`}
                 >
-                  <Mic size={20} />
+                  <Sparkles size={20} />
                 </button>
               </form>
+              
+              {/* Helpful hints */}
+              <div className="text-center mt-2">
+                <p className="text-xs text-muted-foreground">
+                  💡 Hold the mic to speak naturally, or type your thoughts
+                </p>
+              </div>
             </div>
           </div>
         </div>
