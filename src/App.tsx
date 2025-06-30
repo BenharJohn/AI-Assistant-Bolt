@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -11,28 +11,39 @@ import AICompanion from './pages/AICompanion';
 import { TaskProvider } from './context/TaskContext';
 import { SettingsProvider } from './context/SettingsContext';
 import { AIProvider } from './context/AIContext';
+import SplashScreen from './components/SplashScreen';
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  const handleSplashAnimationComplete = () => {
+    setShowSplash(false);
+  };
+
   return (
-    <Router>
-      <SettingsProvider>
-        <AIProvider>
-          <TaskProvider>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/tasks" element={<TaskManager />} />
-                <Route path="/focus" element={<FocusMode />} />
-                <Route path="/learning" element={<LearningTools />} />
-                <Route path="/journal" element={<Journal />} />
-                <Route path="/companion" element={<AICompanion />} />
-                <Route path="/settings" element={<Settings />} />
-              </Routes>
-            </Layout>
-          </TaskProvider>
-        </AIProvider>
-      </SettingsProvider>
-    </Router>
+    <SettingsProvider>
+      <AIProvider>
+        <TaskProvider>
+          {showSplash ? (
+            <SplashScreen onAnimationComplete={handleSplashAnimationComplete} />
+          ) : (
+            <Router>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/tasks" element={<TaskManager />} />
+                  <Route path="/focus" element={<FocusMode />} />
+                  <Route path="/learning" element={<LearningTools />} />
+                  <Route path="/journal" element={<Journal />} />
+                  <Route path="/companion" element={<AICompanion />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Routes>
+              </Layout>
+            </Router>
+          )}
+        </TaskProvider>
+      </AIProvider>
+    </SettingsProvider>
   );
 }
 

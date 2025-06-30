@@ -86,6 +86,17 @@
   }
 }
 
+@layer utilities {
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  
+  .bg-gradient-radial {
+    background: radial-gradient(ellipse at center, var(--tw-gradient-stops));
+  }
+}
+
 /* Organic animations */
 @keyframes gentle-fade {
   from { opacity: 0; transform: translateY(10px); }

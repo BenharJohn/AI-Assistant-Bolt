@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Volume2, VolumeX, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
+import { Sparkles, Maximize2, Minimize2, Send } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
-import { supabase } from '../supabaseClient'; // <--- 1. IMPORT THE SUPABASE CLIENT
+import { supabase } from '../supabaseClient';
 
 // Define the type for our journal entries for clarity
 type JournalEntry = {
@@ -13,16 +13,14 @@ type JournalEntry = {
 const Journal: React.FC = () => {
   const [entries, setEntries] = useState<Array<JournalEntry>>([]); // Start with an empty array
   const [input, setInput] = useState('');
-  const [isListening, setIsListening] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { reducedMotion } = useSettings();
 
-  // --- vvv 2. NEW: FETCH ENTRIES ON LOAD vvv ---
+  // Fetch entries on load
   useEffect(() => {
     const fetchEntries = async () => {
-      // Fetch all entries from the 'journal_entries' table, ordered by creation time
       const { data, error } = await supabase
         .from('journal_entries')
         .select('role, content')
@@ -30,26 +28,22 @@ const Journal: React.FC = () => {
 
       if (error) {
         console.error('Error fetching journal entries:', error);
-        // If fetching fails, still provide the welcome message.
         setEntries([{ type: 'ai', content: '⟡ Welcome! I couldn\'t load our past conversation, but we can start fresh.' }]);
       } else if (data && data.length > 0) {
-        // We need to cast the role to fit our JournalEntry type
         const formattedEntries = data.map(entry => ({
           type: entry.role as 'user' | 'ai',
           content: entry.content
         }));
         setEntries(formattedEntries);
       } else {
-        // If there are no entries in the database, add the initial welcome message
         setEntries([{ type: 'ai', content: '⟡ Welcome to your safe space. How are you feeling today?' }]);
       }
     };
 
     fetchEntries();
-  }, []); // The empty array [] means this effect runs only once when the component mounts
+  }, []);
 
-
-  // Scroll to bottom effect remains the same
+  // Scroll to bottom effect
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: reducedMotion ? 'auto' : 'smooth'
@@ -60,39 +54,20 @@ const Journal: React.FC = () => {
     scrollToBottom();
   }, [entries, reducedMotion]);
 
-  // toggleListening remains the same
-  const toggleListening = () => {
-    setIsListening(!isListening);
-    if (!isListening) {
-      setTimeout(() => {
-        setInput("I'm feeling a bit overwhelmed with all my tasks today");
-        setIsListening(false);
-      }, 2000);
-    }
-  };
-
-
-
-
-
-// --- vvv THIS IS THE ONLY FUNCTION THAT CHANGES vvv ---
-const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim() || isProcessing) return;
 
     const userEntryContent = input.trim();
     const userEntry: JournalEntry = { type: 'user', content: userEntryContent };
 
-    // --- NEW: Get the last 5 entries from the current state to send as history ---
     const recentHistory = entries.slice(-5);
 
-    // Optimistically update UI
     setEntries(prev => [...prev, userEntry]);
     setInput('');
     setIsProcessing(true);
 
     try {
-      // --- MODIFIED: Send both the new message AND the recent history ---
       const response = await fetch('/api/ask-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,7 +86,7 @@ const handleSubmit = async (e?: React.FormEvent) => {
       
       setEntries(prev => [...prev, aiEntry]);
 
-      // The logic to save to Supabase remains the same and is still correct.
+      // Save to Supabase
       const { error: insertError } = await supabase.from('journal_entries').insert([
         { role: 'user', content: userEntryContent },
         { role: 'ai', content: aiResponseContent }
@@ -130,21 +105,10 @@ const handleSubmit = async (e?: React.FormEvent) => {
     }
   };
 
-
-
-
-
-
-
-
-
-
-  
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
 
-  // The rest of your JSX remains the same as your previously themed version
   return (
     <div className={`container mx-auto px-4 py-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       <div className="max-w-2xl mx-auto">
@@ -168,7 +132,7 @@ const handleSubmit = async (e?: React.FormEvent) => {
               <AnimatePresence mode="popLayout">
                 {entries.map((entry, index) => (
                   <motion.div
-                    key={index} // Using index is okay for a simple append-only list
+                    key={index}
                     initial={{ opacity: 0, y: reducedMotion ? 0 : 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: reducedMotion ? 0 : -20 }}
@@ -204,18 +168,6 @@ const handleSubmit = async (e?: React.FormEvent) => {
 
             <div className="p-4 border-t border-appBorder bg-background/80 backdrop-blur-sm">
               <form onSubmit={handleSubmit} className="flex items-end space-x-3">
-                <button
-                  type="button"
-                  onClick={toggleListening}
-                  aria-label={isListening ? "Stop listening" : "Start listening"}
-                  className={`p-3 rounded-xl transition-colors duration-200 ${
-                    isListening
-                      ? 'bg-primary/80 text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted/60'
-                  }`}
-                >
-                  {isListening ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                </button>
                 <div className="flex-1">
                   <input
                     type="text"
@@ -235,9 +187,15 @@ const handleSubmit = async (e?: React.FormEvent) => {
                       : 'text-primary hover:bg-primary/10'
                   }`}
                 >
-                  <Mic size={20} />
+                  <Send size={20} />
                 </button>
               </form>
+              
+              <div className="text-center mt-2">
+                <p className="text-xs text-muted-foreground">
+                  💭 Share your thoughts and feelings in this safe space
+                </p>
+              </div>
             </div>
           </div>
         </div>
