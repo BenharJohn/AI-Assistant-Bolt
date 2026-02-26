@@ -1,27 +1,36 @@
-import { pipeline, TextGenerationPipeline } from '@huggingface/transformers';
+import { pipeline } from '@huggingface/transformers';
 
 type WorkerMessage =
   | { type: 'load' }
   | { type: 'generate'; payload: { messages: { role: string; content: string }[]; id: string } };
 
-let generator: TextGenerationPipeline | null = null;
+let generator: any = null;
 
-const MODEL_ID = 'Qwen/Qwen2.5-0.5B-Instruct';
+const MODEL_ID = 'onnx-community/Qwen2.5-0.5B-Instruct';
 
 async function loadModel() {
   self.postMessage({ type: 'loading', progress: 0 });
-  generator = await pipeline('text-generation', MODEL_ID, {
-    dtype: 'q4',
-    progress_callback: (progress: any) => {
-      if (progress.status === 'downloading') {
-        const pct = progress.total ? Math.round((progress.loaded / progress.total) * 100) : 0;
-        self.postMessage({ type: 'progress', value: pct, file: progress.file });
-      } else if (progress.status === 'ready') {
-        self.postMessage({ type: 'ready' });
-      }
-    },
-  });
-  self.postMessage({ type: 'ready' });
+
+  try {
+    generator = await pipeline('text-generation', MODEL_ID, {
+      dtype: 'q4',
+      progress_callback: (info: any) => {
+        if (info.status === 'initiate') {
+          self.postMessage({ type: 'progress', value: 0, file: info.file });
+        } else if (info.status === 'progress') {
+          self.postMessage({ type: 'progress', value: Math.round(info.progress ?? 0), file: info.file });
+        } else if (info.status === 'done') {
+          self.postMessage({ type: 'progress', value: 100, file: info.file });
+        } else if (info.status === 'ready') {
+          self.postMessage({ type: 'ready' });
+        }
+      },
+    });
+    self.postMessage({ type: 'ready' });
+  } catch (err: any) {
+    console.error('Model loading failed:', err);
+    self.postMessage({ type: 'error', id: null, error: err?.message ?? 'Failed to load model' });
+  }
 }
 
 async function generate(messages: { role: string; content: string }[], id: string) {
@@ -31,7 +40,7 @@ async function generate(messages: { role: string; content: string }[], id: strin
   }
 
   try {
-    const result = await (generator as any)(messages, {
+    const result = await generator(messages, {
       max_new_tokens: 256,
       temperature: 0.7,
       do_sample: true,
