@@ -6,7 +6,6 @@ import { useTask } from '../context/TaskContext';
 import TaskCard from '../components/TaskCard';
 import AIAssistant from '../components/AIAssistant';
 import LiveVoiceShape from '../components/LiveVoiceShape';
-import BoltBadge from '../components/BoltBadge';
 import { useSettings } from '../context/SettingsContext';
 import { useVoiceAI } from '../hooks/useVoiceAI';
 import { format, isToday, parseISO } from 'date-fns';
@@ -138,18 +137,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl text-foreground relative">
-      {/* Bolt.new Badge - ADJUSTED: Further right, lower, and bigger on desktop */}
-      <div className="fixed top-24 right-2 z-30 lg:fixed lg:top-10 lg:right-10 lg:z-20">
-        <div className="lg:hidden">
-          {/* On mobile, positioned to avoid menu interference */}
-          <BoltBadge size="sm" className="shadow-lg" />
-        </div>
-        <div className="hidden lg:block">
-          {/* On desktop, bigger size and adjusted position */}
-          <BoltBadge size="lg" className="shadow-lg" />
-        </div>
-      </div>
-
       <motion.div
         variants={containerVariants}
         initial="hidden"

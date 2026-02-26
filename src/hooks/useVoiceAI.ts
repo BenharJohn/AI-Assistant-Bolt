@@ -293,57 +293,7 @@ export const useVoiceAI = () => {
       // Check content type to determine response format
       const contentType = ttsResponse.headers.get('content-type');
       
-      if (contentType?.includes('application/json')) {
-        // This is a JSON response with fallback instructions
-        const responseData = await ttsResponse.json();
-        
-        if (responseData.useWebSpeech) {
-          console.log('Using Web Speech API fallback');
-          
-          if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(responseData.text || text);
-            utterance.rate = 0.9;
-            utterance.pitch = 1.0;
-            utterance.volume = 0.8;
-            
-            // Try to use a good quality voice
-            const voices = speechSynthesis.getVoices();
-            const preferredVoice = voices.find(voice => 
-              voice.name.includes('Google') || 
-              voice.name.includes('Microsoft') || 
-              voice.name.includes('Alex') ||
-              voice.name.includes('Samantha')
-            );
-            if (preferredVoice) {
-              utterance.voice = preferredVoice;
-            }
-            
-            utterance.onend = () => {
-              updateState({ isPlaying: false });
-              
-              // IMPROVED AUTO-RESTART: Only restart on dashboard and ONLY if user initiated the conversation
-              if (location.pathname === '/' && !text.includes('Good morning') && !text.includes('Good afternoon') && !text.includes('Good evening')) {
-                autoRestartTimeoutRef.current = setTimeout(() => {
-                  if (!state.isProcessing && !state.isPlaying && !state.isListening) {
-                    startListening();
-                  }
-                }, 1000); // 1 second delay
-              }
-            };
-            
-            utterance.onerror = () => {
-              updateState({ isPlaying: false, error: 'Could not play audio response' });
-            };
-            
-            // Cancel any ongoing speech before starting new one
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(utterance);
-            return;
-          } else {
-            throw new Error('Web Speech API not supported');
-          }
-        }
-      } else if (contentType?.includes('audio/')) {
+      if (contentType?.includes('audio/')) {
         // This is actual audio content from Eleven Labs
         console.log('Using Eleven Labs audio');
         
@@ -410,7 +360,6 @@ export const useVoiceAI = () => {
         currentAudioRef.current.pause();
         currentAudioRef.current = null;
       }
-      window.speechSynthesis.cancel();
     };
   }, [cleanupVAD]);
 
@@ -420,7 +369,6 @@ export const useVoiceAI = () => {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
-    window.speechSynthesis.cancel();
     
     // Clear any pending auto-restart when changing pages
     if (autoRestartTimeoutRef.current) {
