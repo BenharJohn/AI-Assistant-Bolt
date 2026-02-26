@@ -141,7 +141,7 @@ const AICompanion: React.FC = () => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="max-w-3xl mx-auto mb-4 flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300"
+            className="max-w-3xl mx-auto mb-4 flex items-center gap-3 bg-stone-100 dark:bg-stone-800/40 border border-stone-300 dark:border-stone-600 rounded-xl px-4 py-3 text-sm text-stone-800 dark:text-stone-200"
           >
             <WifiOff size={16} className="flex-shrink-0" />
             <span className="flex-1">
@@ -150,16 +150,16 @@ const AICompanion: React.FC = () => {
             {offlineLLM.status === 'idle' && (
               <button
                 onClick={handleLoadOfflineModel}
-                className="flex items-center gap-1 bg-amber-200 dark:bg-amber-800 rounded-lg px-2 py-1 text-xs font-medium hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors"
+                className="flex items-center gap-1 bg-stone-300 dark:bg-stone-700 rounded-lg px-2 py-1 text-xs font-medium hover:bg-stone-400 dark:hover:bg-stone-600 transition-colors"
               >
                 <Download size={12} />
                 Load model
               </button>
             )}
             {offlineLLM.status === 'loading' && (
-              <div className="w-24 h-2 bg-amber-200 dark:bg-amber-800 rounded-full overflow-hidden">
+              <div className="w-24 h-2 bg-stone-300 dark:bg-stone-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-amber-500 rounded-full transition-all duration-300"
+                  className="h-full bg-stone-500 rounded-full transition-all duration-300"
                   style={{ width: `${offlineLLM.progress}%` }}
                 />
               </div>
