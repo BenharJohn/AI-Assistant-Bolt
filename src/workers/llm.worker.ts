@@ -1,4 +1,4 @@
-import { pipeline } from '@huggingface/transformers';
+import { pipeline, TextStreamer } from '@huggingface/transformers';
 
 type WorkerMessage =
   | { type: 'load' }
@@ -12,8 +12,27 @@ async function loadModel() {
   self.postMessage({ type: 'loading', progress: 0 });
 
   try {
+    // Try WebGPU first (10-20x faster), fall back to WASM
+    let device: string = 'wasm';
+    try {
+      if ('gpu' in navigator) {
+        const gpu = (navigator as any).gpu;
+        if (gpu) {
+          const adapter = await gpu.requestAdapter();
+          if (adapter) {
+            device = 'webgpu';
+          }
+        }
+      }
+    } catch {
+      // WebGPU not available, use WASM
+    }
+
+    self.postMessage({ type: 'device', device });
+
     generator = await pipeline('text-generation', MODEL_ID, {
-      dtype: 'q4',
+      dtype: device === 'webgpu' ? 'fp16' : 'q4',
+      device,
       progress_callback: (info: any) => {
         if (info.status === 'initiate') {
           self.postMessage({ type: 'progress', value: 0, file: info.file });
@@ -40,25 +59,24 @@ async function generate(messages: { role: string; content: string }[], id: strin
   }
 
   try {
-    const result = await generator(messages, {
-      max_new_tokens: 256,
+    // Stream tokens back as they are generated
+    const streamer = new TextStreamer(generator.tokenizer, {
+      skip_prompt: true,
+      skip_special_tokens: true,
+      callback_function: (token: string) => {
+        self.postMessage({ type: 'token', id, token });
+      },
+    });
+
+    await generator(messages, {
+      max_new_tokens: 150,
       temperature: 0.7,
       do_sample: true,
       repetition_penalty: 1.1,
+      streamer,
     });
 
-    const output = Array.isArray(result) ? result[0] : result;
-    const generated = output?.generated_text;
-
-    let text = '';
-    if (Array.isArray(generated)) {
-      const last = generated[generated.length - 1];
-      text = last?.content ?? '';
-    } else if (typeof generated === 'string') {
-      text = generated;
-    }
-
-    self.postMessage({ type: 'result', id, text });
+    self.postMessage({ type: 'result', id });
   } catch (err: any) {
     self.postMessage({ type: 'error', id, error: err?.message ?? 'Generation failed' });
   }

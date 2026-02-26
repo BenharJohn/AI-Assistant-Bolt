@@ -1,49 +1,60 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Maximize2, Minimize2, Send } from 'lucide-react';
+import { Sparkles, Maximize2, Minimize2, Send, WifiOff } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
-import { supabase } from '../supabaseClient';
+import { useOfflineLLM } from '../hooks/useOfflineLLM';
 
-// Define the type for our journal entries for clarity
 type JournalEntry = {
   type: 'user' | 'ai';
   content: string;
 };
 
+const STORAGE_KEY = 'aeva_journal_entries';
+
+const loadJournalFromStorage = (): JournalEntry[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveJournalToStorage = (entries: JournalEntry[]) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch {
+    console.error('Failed to save journal entries');
+  }
+};
+
 const Journal: React.FC = () => {
-  const [entries, setEntries] = useState<Array<JournalEntry>>([]); // Start with an empty array
+  const [entries, setEntries] = useState<Array<JournalEntry>>([]);
   const [input, setInput] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { reducedMotion } = useSettings();
+  const offlineLLM = useOfflineLLM();
 
-  // Fetch entries on load
+  // Load entries from localStorage
   useEffect(() => {
-    const fetchEntries = async () => {
-      const { data, error } = await supabase
-        .from('journal_entries')
-        .select('role, content')
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching journal entries:', error);
-        setEntries([{ type: 'ai', content: '⟡ Welcome! I couldn\'t load our past conversation, but we can start fresh.' }]);
-      } else if (data && data.length > 0) {
-        const formattedEntries = data.map(entry => ({
-          type: entry.role as 'user' | 'ai',
-          content: entry.content
-        }));
-        setEntries(formattedEntries);
-      } else {
-        setEntries([{ type: 'ai', content: '⟡ Welcome to your safe space. How are you feeling today?' }]);
-      }
-    };
-
-    fetchEntries();
+    const saved = loadJournalFromStorage();
+    if (saved.length > 0) {
+      setEntries(saved);
+    } else {
+      setEntries([{ type: 'ai', content: '⟡ Welcome to your safe space. How are you feeling today?' }]);
+    }
   }, []);
 
-  // Scroll to bottom effect
+  // Save entries when they change
+  useEffect(() => {
+    if (entries.length > 0) {
+      saveJournalToStorage(entries);
+    }
+  }, [entries]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: reducedMotion ? 'auto' : 'smooth'
@@ -60,18 +71,18 @@ const Journal: React.FC = () => {
 
     const userEntryContent = input.trim();
     const userEntry: JournalEntry = { type: 'user', content: userEntryContent };
-
     const recentHistory = entries.slice(-5);
 
     setEntries(prev => [...prev, userEntry]);
     setInput('');
     setIsProcessing(true);
 
+    // Try Gemini API first
     try {
       const response = await fetch('/api/ask-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: userEntryContent,
           history: recentHistory,
           mode: 'journal'
@@ -79,27 +90,59 @@ const Journal: React.FC = () => {
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
-      
+
       const data = await response.json();
-      const aiResponseContent = data.reply || "I'm having trouble thinking right now.";
-      const aiEntry: JournalEntry = { type: 'ai', content: aiResponseContent };
-      
-      setEntries(prev => [...prev, aiEntry]);
+      const isOfflineReply = data.reply?.includes("trouble connecting") || data.reply?.includes("internet to work");
 
-      // Save to Supabase
-      const { error: insertError } = await supabase.from('journal_entries').insert([
-        { role: 'user', content: userEntryContent },
-        { role: 'ai', content: aiResponseContent }
-      ]);
-
-      if (insertError) {
-        console.error('Error saving entries to Supabase:', insertError);
+      if (isOfflineReply) {
+        throw new Error('API offline');
       }
 
+      setIsOffline(false);
+      const aiResponseContent = data.reply || "⟡ I'm having trouble thinking right now.";
+      setEntries(prev => [...prev, { type: 'ai', content: aiResponseContent }]);
+
     } catch (error) {
-      console.error("Failed to fetch AI response:", error);
-      const errorEntry: JournalEntry = { type: 'ai', content: "⟡ I'm sorry, I'm having a little trouble connecting." };
-      setEntries(prev => [...prev, errorEntry]);
+      // Gemini unavailable — fall back to offline LLM
+      setIsOffline(true);
+
+      if (offlineLLM.status === 'idle' || offlineLLM.status === 'error') {
+        offlineLLM.load();
+        setEntries(prev => [...prev, {
+          type: 'ai',
+          content: "⟡ I'm switching to offline mode — downloading my local AI so we can keep journaling. This only happens once!",
+        }]);
+        setIsProcessing(false);
+        return;
+      }
+
+      if (offlineLLM.status === 'loading') {
+        setEntries(prev => [...prev, {
+          type: 'ai',
+          content: `⟡ Still loading the offline model... ${offlineLLM.progress}% done. I'll be with you shortly.`,
+        }]);
+        setIsProcessing(false);
+        return;
+      }
+
+      if (offlineLLM.status === 'ready') {
+        try {
+          // Stream tokens into an empty AI entry
+          setEntries(prev => [...prev, { type: 'ai', content: '' }]);
+          await offlineLLM.generate(userEntryContent, recentHistory, 'journal', (token) => {
+            setEntries(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last && last.type === 'ai') {
+                updated[updated.length - 1] = { ...last, content: last.content + token };
+              }
+              return updated;
+            });
+          });
+        } catch {
+          setEntries(prev => [...prev, { type: 'ai', content: "⟡ I had trouble responding. Let's try again." }]);
+        }
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -114,13 +157,21 @@ const Journal: React.FC = () => {
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-serif text-foreground">Reflective Journal</h1>
-          <button
-            onClick={toggleFullscreen}
-            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-            className="p-2 rounded-xl text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200"
-          >
-            {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
-          </button>
+          <div className="flex items-center gap-2">
+            {isOffline && (
+              <span className="flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400">
+                <WifiOff size={12} />
+                Offline
+              </span>
+            )}
+            <button
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              className="p-2 rounded-xl text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors duration-200"
+            >
+              {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+            </button>
+          </div>
         </div>
 
         <div
@@ -159,7 +210,9 @@ const Journal: React.FC = () => {
                     className="flex items-center space-x-2 text-muted-foreground pl-1"
                   >
                     <Sparkles className="w-4 h-4 animate-pulse text-primary" />
-                    <span className="text-sm font-serif">Reflecting...</span>
+                    <span className="text-sm font-serif">
+                      {offlineLLM.status === 'generating' ? 'Reflecting offline...' : 'Reflecting...'}
+                    </span>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -179,7 +232,7 @@ const Journal: React.FC = () => {
                 </div>
                 <button
                   type="submit"
-                  disabled={!input.trim() || isProcessing}
+                  disabled={!input.trim() || isProcessing || offlineLLM.status === 'loading'}
                   aria-label="Send message"
                   className={`p-3 rounded-xl transition-colors duration-200 ${
                     !input.trim() || isProcessing
@@ -190,10 +243,12 @@ const Journal: React.FC = () => {
                   <Send size={20} />
                 </button>
               </form>
-              
+
               <div className="text-center mt-2">
                 <p className="text-xs text-muted-foreground">
-                  💭 Share your thoughts and feelings in this safe space
+                  {isOffline && offlineLLM.status === 'ready'
+                    ? '🔵 Journaling with local AI'
+                    : '💭 Share your thoughts and feelings in this safe space'}
                 </p>
               </div>
             </div>

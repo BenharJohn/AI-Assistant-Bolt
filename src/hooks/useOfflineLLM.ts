@@ -4,14 +4,15 @@ export type OfflineLLMStatus = 'idle' | 'loading' | 'ready' | 'generating' | 'er
 
 export interface OfflineLLMState {
   status: OfflineLLMStatus;
-  /** Download progress 0-100 while loading */
   progress: number;
-  /** Current file being downloaded */
   progressFile: string;
   error: string | null;
+  device: string;
 }
 
-const AEVA_SYSTEM_PROMPT = `You are Aeva, a warm and supportive AI companion designed to help people with ADHD and focus challenges. You are running offline right now, so keep responses concise and helpful. Be encouraging, understanding, and practical. Do not use tools or navigate pages in offline mode — just have a natural conversation.`;
+const AEVA_SYSTEM_PROMPT = `You are Aeva, a warm and supportive AI companion designed to help people with ADHD and focus challenges. You are running offline right now, so keep responses concise and helpful. Be encouraging, understanding, and practical.`;
+
+const AEVA_JOURNAL_PROMPT = `You are Aeva, a compassionate AI companion for journaling. Always start responses with the symbol: ⟡. Listen deeply, validate emotions, and ask thoughtful open-ended questions. Keep responses warm and concise since you are running offline.`;
 
 let workerSingleton: Worker | null = null;
 let workerRefCount = 0;
@@ -22,10 +23,15 @@ export const useOfflineLLM = () => {
     progress: 0,
     progressFile: '',
     error: null,
+    device: 'wasm',
   });
 
   const workerRef = useRef<Worker | null>(null);
-  const pendingRef = useRef<Map<string, { resolve: (text: string) => void; reject: (e: Error) => void }>>(new Map());
+  const pendingRef = useRef<Map<string, {
+    resolve: () => void;
+    reject: (e: Error) => void;
+    onToken: (token: string) => void;
+  }>>(new Map());
 
   useEffect(() => {
     if (!workerSingleton) {
@@ -39,14 +45,21 @@ export const useOfflineLLM = () => {
 
       if (msg.type === 'loading') {
         setState(s => ({ ...s, status: 'loading', progress: 0 }));
+      } else if (msg.type === 'device') {
+        setState(s => ({ ...s, device: msg.device }));
       } else if (msg.type === 'progress') {
         setState(s => ({ ...s, status: 'loading', progress: msg.value, progressFile: msg.file ?? '' }));
       } else if (msg.type === 'ready') {
         setState(s => ({ ...s, status: 'ready', progress: 100, error: null }));
+      } else if (msg.type === 'token') {
+        const pending = pendingRef.current.get(msg.id);
+        if (pending) {
+          pending.onToken(msg.token);
+        }
       } else if (msg.type === 'result') {
         const pending = pendingRef.current.get(msg.id);
         if (pending) {
-          pending.resolve(msg.text);
+          pending.resolve();
           pendingRef.current.delete(msg.id);
         }
         setState(s => ({ ...s, status: 'ready' }));
@@ -65,7 +78,6 @@ export const useOfflineLLM = () => {
     return () => {
       workerRef.current?.removeEventListener('message', handleMessage);
       workerRefCount--;
-      // Keep worker alive — it's expensive to reload the model
     };
   }, []);
 
@@ -78,16 +90,20 @@ export const useOfflineLLM = () => {
 
   const generate = useCallback(async (
     userMessage: string,
-    history: { type: 'user' | 'ai'; content: string }[] = []
-  ): Promise<string> => {
+    history: { type: 'user' | 'ai'; content: string }[] = [],
+    mode: 'assistant' | 'journal' = 'assistant',
+    onToken?: (token: string) => void,
+  ): Promise<void> => {
     if (!workerRef.current || state.status !== 'ready') {
       throw new Error('Model not ready');
     }
 
     setState(s => ({ ...s, status: 'generating' }));
 
+    const systemPrompt = mode === 'journal' ? AEVA_JOURNAL_PROMPT : AEVA_SYSTEM_PROMPT;
+
     const messages: { role: string; content: string }[] = [
-      { role: 'system', content: AEVA_SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...history.slice(-4).map(h => ({
         role: h.type === 'user' ? 'user' : 'assistant',
         content: h.content,
@@ -97,8 +113,12 @@ export const useOfflineLLM = () => {
 
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    return new Promise<string>((resolve, reject) => {
-      pendingRef.current.set(id, { resolve, reject });
+    return new Promise<void>((resolve, reject) => {
+      pendingRef.current.set(id, {
+        resolve,
+        reject,
+        onToken: onToken ?? (() => {}),
+      });
       workerRef.current!.postMessage({ type: 'generate', payload: { messages, id } });
     });
   }, [state.status]);

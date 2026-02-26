@@ -106,10 +106,20 @@ const AICompanion: React.FC = () => {
 
       if (offlineLLM.status === 'ready') {
         try {
-          const offlineReply = await offlineLLM.generate(userMessage, recentHistory);
-          setConversation(prev => [...prev, { type: 'ai', content: offlineReply }]);
+          // Add empty AI entry, then stream tokens into it
+          setConversation(prev => [...prev, { type: 'ai', content: '' }]);
+          await offlineLLM.generate(userMessage, recentHistory, 'assistant', (token) => {
+            setConversation(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last && last.type === 'ai') {
+                updated[updated.length - 1] = { ...last, content: last.content + token };
+              }
+              return updated;
+            });
+          });
         } catch {
-          setConversation(prev => [...prev, { type: 'ai', content: "⟡ Sorry, I had trouble generating a response. Please try again." }]);
+          setConversation(prev => [...prev, { type: 'ai', content: "Sorry, I had trouble generating a response. Please try again." }]);
         }
       }
     } finally {
