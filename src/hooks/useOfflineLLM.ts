@@ -10,9 +10,9 @@ export interface OfflineLLMState {
   device: string;
 }
 
-const AEVA_SYSTEM_PROMPT = `You are Aeva, a warm and supportive AI companion designed to help people with ADHD and focus challenges. You are running offline right now, so keep responses concise and helpful. Be encouraging, understanding, and practical.`;
+const AEVA_SYSTEM_PROMPT = `You are Aeva, a helpful AI companion. Be concise, encouraging, and practical.`;
 
-const AEVA_JOURNAL_PROMPT = `You are Aeva, a compassionate AI companion for journaling. Always start responses with the symbol: ⟡. Listen deeply, validate emotions, and ask thoughtful open-ended questions. Keep responses warm and concise since you are running offline.`;
+const AEVA_JOURNAL_PROMPT = `You are Aeva, a compassionate journal companion. Start responses with ⟡. Be warm, ask open-ended questions.`;
 
 let workerSingleton: Worker | null = null;
 let workerRefCount = 0;
@@ -123,5 +123,9 @@ export const useOfflineLLM = () => {
     });
   }, [state.status]);
 
-  return { ...state, load, generate };
+  const stop = useCallback(() => {
+    workerRef.current?.postMessage({ type: 'stop' });
+  }, []);
+
+  return { ...state, load, generate, stop };
 };

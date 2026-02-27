@@ -2,9 +2,12 @@ import { pipeline, TextStreamer } from '@huggingface/transformers';
 
 type WorkerMessage =
   | { type: 'load' }
-  | { type: 'generate'; payload: { messages: { role: string; content: string }[]; id: string } };
+  | { type: 'generate'; payload: { messages: { role: string; content: string }[]; id: string } }
+  | { type: 'stop' };
 
 let generator: any = null;
+let currentId: string | null = null;
+let shouldStop = false;
 
 const MODEL_ID = 'onnx-community/Qwen2.5-0.5B-Instruct';
 
@@ -12,8 +15,7 @@ async function loadModel() {
   self.postMessage({ type: 'loading', progress: 0 });
 
   try {
-    // Try WebGPU first (10-20x faster), fall back to WASM
-    let device: string = 'wasm';
+    let device: 'wasm' | 'webgpu' = 'wasm';
     try {
       if ('gpu' in navigator) {
         const gpu = (navigator as any).gpu;
@@ -33,6 +35,10 @@ async function loadModel() {
     generator = await pipeline('text-generation', MODEL_ID, {
       dtype: device === 'webgpu' ? 'fp16' : 'q4',
       device,
+      // Enable max ONNX graph optimizations for WASM (operator fusion, constant folding)
+      session_options: {
+        graphOptimizationLevel: 'all',
+      },
       progress_callback: (info: any) => {
         if (info.status === 'initiate') {
           self.postMessage({ type: 'progress', value: 0, file: info.file });
@@ -45,6 +51,11 @@ async function loadModel() {
         }
       },
     });
+
+    // Warm-up inference: triggers WASM JIT / WebGPU shader compilation
+    // so the user's first real query skips this cold-start penalty
+    await generator([{ role: 'user', content: 'hi' }], { max_new_tokens: 1 });
+
     self.postMessage({ type: 'ready' });
   } catch (err: any) {
     console.error('Model loading failed:', err);
@@ -58,12 +69,15 @@ async function generate(messages: { role: string; content: string }[], id: strin
     return;
   }
 
+  currentId = id;
+  shouldStop = false;
+
   try {
-    // Stream tokens back as they are generated
     const streamer = new TextStreamer(generator.tokenizer, {
       skip_prompt: true,
       skip_special_tokens: true,
       callback_function: (token: string) => {
+        if (shouldStop) return false;
         self.postMessage({ type: 'token', id, token });
       },
     });
@@ -78,7 +92,12 @@ async function generate(messages: { role: string; content: string }[], id: strin
 
     self.postMessage({ type: 'result', id });
   } catch (err: any) {
-    self.postMessage({ type: 'error', id, error: err?.message ?? 'Generation failed' });
+    if (!shouldStop) {
+      self.postMessage({ type: 'error', id, error: err?.message ?? 'Generation failed' });
+    }
+  } finally {
+    currentId = null;
+    shouldStop = false;
   }
 }
 
@@ -88,5 +107,10 @@ self.addEventListener('message', async (event: MessageEvent<WorkerMessage>) => {
     await loadModel();
   } else if (msg.type === 'generate') {
     await generate(msg.payload.messages, msg.payload.id);
+  } else if (msg.type === 'stop') {
+    shouldStop = true;
+    if (currentId) {
+      self.postMessage({ type: 'result', id: currentId });
+    }
   }
 });
