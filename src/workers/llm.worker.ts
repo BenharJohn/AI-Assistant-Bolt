@@ -9,7 +9,7 @@ let generator: any = null;
 let currentId: string | null = null;
 let shouldStop = false;
 
-const MODEL_ID = 'onnx-community/Qwen2.5-0.5B-Instruct';
+const MODEL_ID = 'onnx-community/Llama-3.2-1B-Instruct';
 
 async function loadModel() {
   self.postMessage({ type: 'loading', progress: 0 });
@@ -33,7 +33,7 @@ async function loadModel() {
     self.postMessage({ type: 'device', device });
 
     generator = await pipeline('text-generation', MODEL_ID, {
-      dtype: device === 'webgpu' ? 'fp16' : 'q4',
+      dtype: device === 'webgpu' ? 'fp16' : 'q4f16',
       device,
       // Enable max ONNX graph optimizations for WASM (operator fusion, constant folding)
       session_options: {
