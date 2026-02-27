@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, Mic, WifiOff, Download } from 'lucide-react';
+import { Send, Sparkles, Mic, WifiOff, Download, Square } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
 import VoiceAI from '../components/VoiceAI';
@@ -127,6 +127,11 @@ const AICompanion: React.FC = () => {
     }
   };
 
+  const handleStop = () => {
+    offlineLLM.stop();
+    setIsProcessing(false);
+  };
+
   const handleLoadOfflineModel = () => {
     offlineLLM.load();
   };
@@ -229,14 +234,25 @@ const AICompanion: React.FC = () => {
                   placeholder={isOffline ? "Ask me anything (offline mode)..." : "e.g., 'What is on my schedule today?'"}
                   className="flex-1 w-full bg-background/50 border-appBorder rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50 focus:outline-none text-foreground placeholder-muted-foreground"
                 />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isProcessing || offlineLLM.status === 'loading'}
-                  aria-label="Send message"
-                  className="p-3 rounded-xl transition-all duration-200 bg-primary hover:bg-primary-hover text-primary-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
-                >
-                  <Send size={20} />
-                </button>
+                {isProcessing || offlineLLM.status === 'generating' ? (
+                  <button
+                    type="button"
+                    onClick={handleStop}
+                    aria-label="Stop generating"
+                    className="p-3 rounded-xl transition-all duration-200 bg-red-500 hover:bg-red-600 text-white"
+                  >
+                    <Square size={20} />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || offlineLLM.status === 'loading'}
+                    aria-label="Send message"
+                    className="p-3 rounded-xl transition-all duration-200 bg-primary hover:bg-primary-hover text-primary-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
+                  >
+                    <Send size={20} />
+                  </button>
+                )}
               </form>
 
               <p className="text-xs text-muted-foreground text-center mt-2">

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Maximize2, Minimize2, Send, WifiOff } from 'lucide-react';
+import { Sparkles, Maximize2, Minimize2, Send, WifiOff, Square } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useOfflineLLM } from '../hooks/useOfflineLLM';
 
@@ -148,6 +148,11 @@ const Journal: React.FC = () => {
     }
   };
 
+  const handleStop = () => {
+    offlineLLM.stop();
+    setIsProcessing(false);
+  };
+
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
@@ -230,18 +235,29 @@ const Journal: React.FC = () => {
                     className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground"
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isProcessing || offlineLLM.status === 'loading'}
-                  aria-label="Send message"
-                  className={`p-3 rounded-xl transition-colors duration-200 ${
-                    !input.trim() || isProcessing
-                      ? 'text-muted-foreground/50 cursor-not-allowed'
-                      : 'text-primary hover:bg-primary/10'
-                  }`}
-                >
-                  <Send size={20} />
-                </button>
+                {isProcessing || offlineLLM.status === 'generating' ? (
+                  <button
+                    type="button"
+                    onClick={handleStop}
+                    aria-label="Stop generating"
+                    className="p-3 rounded-xl transition-colors duration-200 text-red-500 hover:bg-red-500/10"
+                  >
+                    <Square size={20} />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || offlineLLM.status === 'loading'}
+                    aria-label="Send message"
+                    className={`p-3 rounded-xl transition-colors duration-200 ${
+                      !input.trim()
+                        ? 'text-muted-foreground/50 cursor-not-allowed'
+                        : 'text-primary hover:bg-primary/10'
+                    }`}
+                  >
+                    <Send size={20} />
+                  </button>
+                )}
               </form>
 
               <div className="text-center mt-2">
