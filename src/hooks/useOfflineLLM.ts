@@ -16,6 +16,7 @@ const AEVA_JOURNAL_PROMPT = `You are Aeva, a compassionate journal companion. St
 
 let workerSingleton: Worker | null = null;
 let workerRefCount = 0;
+let autoLoadTriggered = false;
 
 export const useOfflineLLM = () => {
   const [state, setState] = useState<OfflineLLMState>({
@@ -74,6 +75,27 @@ export const useOfflineLLM = () => {
     };
 
     workerRef.current.addEventListener('message', handleMessage);
+
+    // Auto-load model on first mount (3s delay so UI renders first)
+    if (!autoLoadTriggered) {
+      autoLoadTriggered = true;
+      const timer = setTimeout(() => {
+        if (workerRef.current) {
+          setState(s => {
+            if (s.status === 'idle') {
+              workerRef.current?.postMessage({ type: 'load' });
+              return { ...s, status: 'loading', progress: 0, error: null };
+            }
+            return s;
+          });
+        }
+      }, 3000);
+      return () => {
+        clearTimeout(timer);
+        workerRef.current?.removeEventListener('message', handleMessage);
+        workerRefCount--;
+      };
+    }
 
     return () => {
       workerRef.current?.removeEventListener('message', handleMessage);

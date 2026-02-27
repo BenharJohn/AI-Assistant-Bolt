@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import foxIcon from '../assets/fox.png';
 import aevaLogo from '../assets/aeva.png';
+import LLMDownloadWidget from './LLMDownloadWidget';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -157,6 +158,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ))}
         </div>
       </nav>
+
+      {/* Floating download progress widget */}
+      <LLMDownloadWidget />
     </div>
   );
 };
