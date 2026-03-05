@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Brain, X } from 'lucide-react';
 import foxIcon from '../assets/fox.png';
@@ -8,11 +8,18 @@ const LLMDownloadWidget: React.FC = () => {
   const { status, progress } = useOfflineLLM();
   const [dismissed, setDismissed] = useState(false);
 
-  // Don't show if idle, dismissed, or already generating
-  if (status === 'idle' || status === 'generating' || dismissed) return null;
+  const isReady = status === 'ready';
 
   // Auto-dismiss 5s after ready
-  const isReady = status === 'ready';
+  useEffect(() => {
+    if (isReady && !dismissed) {
+      const timer = setTimeout(() => setDismissed(true), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isReady, dismissed]);
+
+  // Don't show if idle, dismissed, or already generating
+  if (status === 'idle' || status === 'generating' || dismissed) return null;
 
   return (
     <AnimatePresence>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Briefcase, Book, CalendarClock, Brain, PlusCircle, CheckCircle, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -13,7 +13,6 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { state } = useTask();
   const { reducedMotion } = useSettings();
-  const [showAIAssistant, setShowAIAssistant] = useState(false);
   const today = new Date();
 
   // Calculate stats based on actual database fields
@@ -282,7 +281,7 @@ const Dashboard: React.FC = () => {
         </motion.div>
       </motion.div>
 
-      {showAIAssistant && <AIAssistant onClose={() => setShowAIAssistant(false)} />}
+      <AIAssistant />
     </div>
   );
 };

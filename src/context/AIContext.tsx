@@ -1,13 +1,11 @@
 import React, { createContext, useContext, useState } from 'react';
-import { Task } from './TaskContext'; // Assuming Task type might be needed in the future
+import { useOfflineLLM } from '../hooks/useOfflineLLM';
 
-// Define the shape of a Flashcard
 export interface Flashcard {
   question: string;
   answer: string;
 }
 
-// Define the functions our AI context will provide
 interface AIContextType {
   isProcessing: boolean;
   getAIResponse: (prompt: string, content?: string) => Promise<string | null>;
@@ -26,81 +24,108 @@ export const useAI = () => {
 
 export const AIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const offlineLLM = useOfflineLLM();
 
-  // A single, flexible function to get different kinds of responses from our AI
+  // Try Gemini API first, fall back to offline LLM
   const getAIResponse = async (prompt: string, content?: string): Promise<string | null> => {
     setIsProcessing(true);
     try {
-      // We use our single API endpoint for these specific learning tasks
       const response = await fetch('/api/ask-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            // We create a very direct command for the AI to follow
-            message: `${prompt}: "${content || ''}"`,
-            // We use 'learning' mode to get a direct answer without tools
-            mode: 'learning' 
+        body: JSON.stringify({
+          message: `${prompt}: "${content || ''}"`,
+          mode: 'learning'
         }),
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
-      
-      const data = await response.json();
-      return data.reply || "Sorry, I couldn't process that.";
 
-    } catch (error) {
-      console.error("Failed to fetch AI response:", error);
-      return "An error occurred while trying to connect.";
+      const data = await response.json();
+      const reply = data.reply || '';
+
+      // Detect offline fallback from server
+      if (reply.includes("trouble connecting") || reply.includes("internet to work")) {
+        throw new Error('API offline');
+      }
+
+      return reply;
+    } catch {
+      // Fall back to offline LLM
+      if (offlineLLM.status === 'ready') {
+        try {
+          let result = '';
+          await offlineLLM.generate(
+            `${prompt}: "${content || ''}"`,
+            [],
+            'assistant',
+            (token) => { result += token; }
+          );
+          return result || "I generated a response but it was empty. Please try again.";
+        } catch {
+          return "Sorry, the offline AI had trouble with that. Please try again.";
+        }
+      }
+      if (offlineLLM.status === 'loading') {
+        return "The offline AI model is still downloading. Please try again in a moment.";
+      }
+      return "I'm offline right now. The AI model is being prepared — try again shortly.";
     } finally {
       setIsProcessing(false);
     }
   };
-  
-  // New function to generate flashcards from a topic
+
   const generateFlashcards = async (topic: string): Promise<Flashcard[] | null> => {
     setIsProcessing(true);
     const prompt = `You are a study expert. Based on the topic "${topic}", generate 3-5 flashcards for studying. Each flashcard should have a "question" and a concise "answer". Respond ONLY with a valid JSON object in this exact format: {"flashcards": [{"question": "Question 1", "answer": "Answer 1"}, ...]}`;
 
     try {
-        const response = await fetch('/api/ask-assistant', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: prompt, mode: 'learning' }),
-        });
+      const response = await fetch('/api/ask-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: prompt, mode: 'learning' }),
+      });
 
-        if (!response.ok) throw new Error('Network response was not ok');
-        
-        let responseText = (await response.json()).reply || '';
+      if (!response.ok) throw new Error('Network response was not ok');
 
-        // Clean the response to extract only the JSON part
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            responseText = jsonMatch[0];
-        } else {
-            // If no JSON is found, return null
-            console.error("AI did not return valid JSON for flashcards", responseText);
-            return null;
-        }
+      let responseText = (await response.json()).reply || '';
 
-        const data = JSON.parse(responseText);
-        return data.flashcards || [];
+      if (responseText.includes("trouble connecting") || responseText.includes("internet to work")) {
+        throw new Error('API offline');
+      }
 
-    } catch (error) {
-        console.error("Failed to generate flashcards:", error);
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        responseText = jsonMatch[0];
+      } else {
         return null;
+      }
+
+      const data = JSON.parse(responseText);
+      return data.flashcards || [];
+    } catch {
+      // Fall back to offline LLM for flashcards
+      if (offlineLLM.status === 'ready') {
+        try {
+          let result = '';
+          await offlineLLM.generate(prompt, [], 'assistant', (token) => { result += token; });
+          const jsonMatch = result.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const data = JSON.parse(jsonMatch[0]);
+            return data.flashcards || [];
+          }
+        } catch {
+          // LLM couldn't produce valid JSON
+        }
+      }
+      return null;
     } finally {
-        setIsProcessing(false);
+      setIsProcessing(false);
     }
   };
 
   return (
-    <AIContext.Provider
-      value={{
-        isProcessing,
-        getAIResponse,
-        generateFlashcards,
-      }}
-    >
+    <AIContext.Provider value={{ isProcessing, getAIResponse, generateFlashcards }}>
       {children}
     </AIContext.Provider>
   );
