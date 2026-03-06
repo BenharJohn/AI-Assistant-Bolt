@@ -18,6 +18,14 @@ let workerSingleton: Worker | null = null;
 let workerRefCount = 0;
 let autoLoadTriggered = false;
 
+// Detect mobile: small screen or touch-only device
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  const isSmallScreen = window.innerWidth < 768;
+  const isTouchOnly = 'ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches;
+  return isSmallScreen || isTouchOnly;
+};
+
 export const useOfflineLLM = () => {
   const [state, setState] = useState<OfflineLLMState>({
     status: 'idle',
@@ -77,7 +85,8 @@ export const useOfflineLLM = () => {
     workerRef.current.addEventListener('message', handleMessage);
 
     // Auto-load model on first mount (3s delay so UI renders first)
-    if (!autoLoadTriggered) {
+    // Skip auto-load on mobile — model is too large and can crash the browser
+    if (!autoLoadTriggered && !isMobileDevice()) {
       autoLoadTriggered = true;
       const timer = setTimeout(() => {
         if (workerRef.current) {
@@ -106,7 +115,7 @@ export const useOfflineLLM = () => {
   const load = useCallback(() => {
     if (state.status === 'idle' || state.status === 'error') {
       setState(s => ({ ...s, status: 'loading', progress: 0, error: null }));
-      workerRef.current?.postMessage({ type: 'load' });
+      workerRef.current?.postMessage({ type: 'load', skipWarmup: isMobileDevice() });
     }
   }, [state.status]);
 

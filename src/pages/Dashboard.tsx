@@ -105,16 +105,16 @@ const Dashboard: React.FC = () => {
         </motion.div>
 
         {/* Stats Section - Made Cards Bigger */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 mb-8 md:mb-10">
           {/* Card 1: Tasks Today */}
-          <div className="bg-card rounded-2xl shadow-warm p-8 border border-appBorder">
-            <div className="flex items-center mb-6">
-              <div className="rounded-full bg-primary/10 p-4 mr-5">
-                <Briefcase className={`h-8 w-8 ${iconPrimaryColor}`} />
+          <div className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-5 md:p-8 border border-appBorder">
+            <div className="flex items-center mb-4 md:mb-6">
+              <div className="rounded-full bg-primary/10 p-3 md:p-4 mr-4 md:mr-5">
+                <Briefcase className={`h-6 w-6 md:h-8 md:w-8 ${iconPrimaryColor}`} />
               </div>
               <div>
-                <h3 className="text-xl font-medium text-card-foreground">Tasks Today</h3>
-                <p className="text-3xl font-bold text-card-foreground">{totalTasks}</p>
+                <h3 className="text-lg md:text-xl font-medium text-card-foreground">Tasks Today</h3>
+                <p className="text-2xl md:text-3xl font-bold text-card-foreground">{totalTasks}</p>
               </div>
             </div>
             <div className="mt-3">
@@ -132,14 +132,14 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Card 2: Completed */}
-          <div className="bg-card rounded-2xl shadow-warm p-8 border border-appBorder">
-            <div className="flex items-center mb-6">
-              <div className="rounded-full bg-secondary/10 p-4 mr-5">
-                <CheckCircle className={`h-8 w-8 ${iconSecondaryColor}`} />
+          <div className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-5 md:p-8 border border-appBorder">
+            <div className="flex items-center mb-4 md:mb-6">
+              <div className="rounded-full bg-secondary/10 p-3 md:p-4 mr-4 md:mr-5">
+                <CheckCircle className={`h-6 w-6 md:h-8 md:w-8 ${iconSecondaryColor}`} />
               </div>
               <div>
-                <h3 className="text-xl font-medium text-card-foreground">Completed</h3>
-                <p className="text-3xl font-bold text-card-foreground">{completedToday}</p>
+                <h3 className="text-lg md:text-xl font-medium text-card-foreground">Completed</h3>
+                <p className="text-2xl md:text-3xl font-bold text-card-foreground">{completedToday}</p>
               </div>
             </div>
             <p className="text-base text-muted-foreground">
@@ -150,14 +150,14 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Card 3: Focus Time */}
-          <div className="bg-card rounded-2xl shadow-warm p-8 border border-appBorder">
-            <div className="flex items-center mb-6">
-              <div className="rounded-full bg-accent/10 p-4 mr-5">
-                <Clock className={`h-8 w-8 ${iconAccentColor}`} />
+          <div className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-5 md:p-8 border border-appBorder">
+            <div className="flex items-center mb-4 md:mb-6">
+              <div className="rounded-full bg-accent/10 p-3 md:p-4 mr-4 md:mr-5">
+                <Clock className={`h-6 w-6 md:h-8 md:w-8 ${iconAccentColor}`} />
               </div>
               <div>
-                <h3 className="text-xl font-medium text-card-foreground">Focus Time</h3>
-                <p className="text-3xl font-bold text-card-foreground">25:00</p>
+                <h3 className="text-lg md:text-xl font-medium text-card-foreground">Focus Time</h3>
+                <p className="text-2xl md:text-3xl font-bold text-card-foreground">25:00</p>
               </div>
             </div>
             <button 
@@ -190,9 +190,9 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           ) : state.error ? (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-8 text-center">
-              <p className="text-red-600 dark:text-red-400 font-medium text-lg">Unable to load tasks</p>
-              <p className="text-red-500 dark:text-red-300 text-base mt-2">{state.error}</p>
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-8 text-center">
+              <p className="text-primary font-medium text-lg">Unable to load tasks</p>
+              <p className="text-muted-foreground text-base mt-2">{state.error}</p>
             </div>
           ) : priorityTasks.length > 0 ? (
             <div className="space-y-6">
@@ -239,9 +239,9 @@ const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
             {/* Learning Card 1 */}
-            <div className="bg-card rounded-2xl shadow-warm p-8 border border-appBorder">
+            <div className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-5 md:p-8 border border-appBorder">
               <div className="flex items-center mb-4">
                 <div className="rounded-full bg-secondary/10 p-3 mr-4">
                   <Brain size={24} className={`${iconSecondaryColor}`} />
@@ -260,7 +260,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Learning Card 2 */}
-            <div className="bg-card rounded-2xl shadow-warm p-8 border border-appBorder">
+            <div className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-5 md:p-8 border border-appBorder">
               <div className="flex items-center mb-4">
                 <div className="rounded-full bg-accent/10 p-3 mr-4">
                   <Book size={24} className={`${iconAccentColor}`} />

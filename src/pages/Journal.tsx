@@ -161,10 +161,10 @@ const Journal: React.FC = () => {
     <div className={`container mx-auto px-4 py-6 ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-serif text-foreground">Reflective Journal</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Reflective Journal</h1>
           <div className="flex items-center gap-2">
             {isOffline && (
-              <span className="flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <WifiOff size={12} />
                 Offline
               </span>
@@ -180,8 +180,8 @@ const Journal: React.FC = () => {
         </div>
 
         <div
-          className={`bg-card rounded-2xl border border-appBorder overflow-hidden shadow-warm
-            ${isFullscreen ? 'h-[calc(100vh-8rem)]' : 'h-[600px]'}`}
+          className={`bg-card rounded-2xl border border-appBorder overflow-hidden shadow-soft
+            ${isFullscreen ? 'h-[calc(100vh-8rem)]' : 'h-[calc(100vh-13rem)] lg:h-[600px]'}`}
         >
           <div className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -196,7 +196,7 @@ const Journal: React.FC = () => {
                     className={`max-w-[85%] ${entry.type === 'user' ? 'ml-auto text-right' : ''}`}
                   >
                     <div
-                      className={`inline-block text-left font-serif text-lg rounded-xl px-3 py-2 ${
+                      className={`inline-block text-left text-base rounded-xl px-3 py-2 ${
                         entry.type === 'user'
                           ? 'bg-primary/10 text-foreground'
                           : 'text-muted-foreground pl-1'
@@ -215,7 +215,7 @@ const Journal: React.FC = () => {
                     className="flex items-center space-x-2 text-muted-foreground pl-1"
                   >
                     <Sparkles className="w-4 h-4 animate-pulse text-primary" />
-                    <span className="text-sm font-serif">
+                    <span className="text-sm">
                       {offlineLLM.status === 'generating' ? 'Reflecting offline...' : 'Reflecting...'}
                     </span>
                   </motion.div>
@@ -232,7 +232,7 @@ const Journal: React.FC = () => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="What's on your mind?"
-                    className="w-full bg-transparent border-0 focus:ring-0 font-serif text-lg text-foreground placeholder-muted-foreground"
+                    className="w-full bg-transparent border-0 focus:ring-0 text-base text-foreground placeholder-muted-foreground"
                   />
                 </div>
                 {isProcessing || offlineLLM.status === 'generating' ? (
@@ -240,7 +240,7 @@ const Journal: React.FC = () => {
                     type="button"
                     onClick={handleStop}
                     aria-label="Stop generating"
-                    className="p-3 rounded-xl transition-colors duration-200 text-red-500 hover:bg-red-500/10"
+                    className="p-3 rounded-xl transition-colors duration-200 text-primary hover:bg-primary/10"
                   >
                     <Square size={20} />
                   </button>
@@ -251,7 +251,7 @@ const Journal: React.FC = () => {
                     aria-label="Send message"
                     className={`p-3 rounded-xl transition-colors duration-200 ${
                       !input.trim()
-                        ? 'text-muted-foreground/50 cursor-not-allowed'
+                        ? 'text-muted-foreground/50 cursor-not-allowed opacity-50'
                         : 'text-primary hover:bg-primary/10'
                     }`}
                   >

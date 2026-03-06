@@ -18,13 +18,13 @@ const FormModal: React.FC<{
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
         transition={{ duration: reducedMotion ? 0.1 : 0.2 }}
         className="bg-card rounded-2xl shadow-warm border border-appBorder p-6 w-full max-w-md"
         onClick={(e) => e.stopPropagation()}
@@ -163,7 +163,7 @@ const TaskManager: React.FC = () => {
                 placeholder="Enter task title..." 
                 required 
                 disabled={isSubmitting}
-                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+                className="w-full bg-background border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
               />
               
               <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Description</label>
@@ -173,7 +173,7 @@ const TaskManager: React.FC = () => {
                 placeholder="Description..." 
                 rows={3} 
                 disabled={isSubmitting}
-                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none disabled:opacity-50" 
+                className="w-full bg-background border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none disabled:opacity-50" 
               />
               
               <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Priority</label>
@@ -181,7 +181,7 @@ const TaskManager: React.FC = () => {
                 value={formState.priority} 
                 onChange={(e) => setFormState({...formState, priority: e.target.value as any})} 
                 disabled={isSubmitting}
-                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50"
+                className="w-full bg-background border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -194,7 +194,7 @@ const TaskManager: React.FC = () => {
                 value={formState.due_date} 
                 onChange={(e) => setFormState({...formState, due_date: e.target.value})} 
                 disabled={isSubmitting}
-                className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+                className="w-full bg-background border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
               />
             </FormModal>
           )}
@@ -208,7 +208,7 @@ const TaskManager: React.FC = () => {
                   placeholder="Task title..." 
                   required 
                   disabled={isSubmitting}
-                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+                  className="w-full bg-background border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
                 />
                 
                 <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Description</label>
@@ -218,7 +218,7 @@ const TaskManager: React.FC = () => {
                   placeholder="Description..." 
                   rows={3} 
                   disabled={isSubmitting}
-                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none disabled:opacity-50" 
+                  className="w-full bg-background border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground resize-none disabled:opacity-50" 
                 />
                 
                 <label className="block text-sm font-medium text-card-foreground mb-1 mt-4">Priority</label>
@@ -226,7 +226,7 @@ const TaskManager: React.FC = () => {
                   value={formState.priority} 
                   onChange={(e) => setFormState({...formState, priority: e.target.value as any})} 
                   disabled={isSubmitting}
-                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50"
+                  className="w-full bg-background border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -239,7 +239,7 @@ const TaskManager: React.FC = () => {
                   value={formState.due_date} 
                   onChange={(e) => setFormState({...formState, due_date: e.target.value})} 
                   disabled={isSubmitting}
-                  className="w-full bg-background border border-appBorder rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
+                  className="w-full bg-background border border-appBorder rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground disabled:opacity-50" 
                 />
             </FormModal>
           )}
@@ -249,9 +249,9 @@ const TaskManager: React.FC = () => {
           {taskState.loading ? (
             <p className="text-muted-foreground text-center animate-pulse">Loading tasks...</p>
           ) : taskState.error ? (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 text-center">
-              <p className="text-red-600 dark:text-red-400 font-medium">Error loading tasks</p>
-              <p className="text-red-500 dark:text-red-300 text-sm mt-1">{taskState.error}</p>
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 text-center">
+              <p className="text-primary font-medium">Error loading tasks</p>
+              <p className="text-muted-foreground text-sm mt-1">{taskState.error}</p>
             </div>
           ) : taskState.tasks.length > 0 ? (
             taskState.tasks.map(task => (

@@ -72,7 +72,7 @@ const LearningTools: React.FC = () => {
           <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">Your AI-powered study partner. Explain complex topics, summarize articles, and create flashcards to reinforce your learning.</p>
         </motion.div>
         
-        <motion.div variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder mb-6">
+        <motion.div variants={itemVariants} className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder mb-6">
           <div className="flex border-b border-appBorder mb-6">
             {(['explain', 'summarize'] as const).map(tab => (
               <button
@@ -122,7 +122,7 @@ const LearningTools: React.FC = () => {
             </motion.div>
         )}
         {result && (
-          <motion.div variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+          <motion.div variants={itemVariants} className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-card-foreground">{activeTab === 'explain' ? 'Explanation' : 'Summary'}</h2>
               <div className="flex items-center gap-2">
@@ -130,7 +130,7 @@ const LearningTools: React.FC = () => {
                     <BrainCircuit size={16}/> Create Flashcards
                  </button>
                  <button onClick={handleCopyToClipboard} className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-                    {hasCopied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                    {hasCopied ? <Check size={16} className="text-primary" /> : <Copy size={16} />}
                  </button>
               </div>
             </div>

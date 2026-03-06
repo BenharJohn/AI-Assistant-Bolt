@@ -115,7 +115,7 @@ const FocusMode: React.FC = () => {
       </motion.h1>
       
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-card rounded-2xl shadow-warm p-8 border border-appBorder">
+        <div className="lg:col-span-2 bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-8 border border-appBorder">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-card-foreground">{sessionType === 'focus' ? 'Focus Session' : 'Break Time'}</h2>
             <div className="flex space-x-2">
@@ -141,7 +141,7 @@ const FocusMode: React.FC = () => {
         </div>
         
         <div className="space-y-6">
-          <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+          <div className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder">
             <h2 className="text-lg font-semibold text-card-foreground mb-4">Ambient Sounds</h2>
             <div className="grid grid-cols-2 gap-3">
               {([ { id: 'noise', label: 'White Noise', icon: Wind }, { id: 'rain', label: 'Rain', icon: CloudRain }, { id: 'coffee', label: 'Coffee Shop', icon: Coffee }, { id: 'nature', label: 'Nature', icon: Leaf } ] as const).map(({id, label, icon: Icon}) => (
@@ -150,7 +150,7 @@ const FocusMode: React.FC = () => {
             </div>
           </div>
           
-          <div className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+          <div className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder">
             <AnimatePresence mode="wait">
               <motion.div key={sessionType} initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}}>
                 {sessionType === 'focus' ? (
@@ -171,7 +171,7 @@ const FocusMode: React.FC = () => {
                        {gameStatus === 'idle' && <button onClick={startGame} className="btn-secondary py-2 px-4 text-sm">Start Game</button>}
                        {gameStatus === 'showing' && <p className="text-sm text-muted-foreground animate-pulse">Watch carefully...</p>}
                        {gameStatus === 'playing' && <p className="text-sm text-muted-foreground">Your turn!</p>}
-                       {gameStatus === 'lost' && <p className="text-sm text-red-500 font-bold">Try again!</p>}
+                       {gameStatus === 'lost' && <p className="text-sm text-primary font-bold">Try again!</p>}
                      </div>
                    </div>
                 )}
@@ -183,8 +183,8 @@ const FocusMode: React.FC = () => {
       
       <AnimatePresence>
         {showSettings && (
-          <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
-            <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -30, opacity: 0 }} className="bg-card rounded-2xl shadow-xl max-w-sm w-full p-6 border border-appBorder" onClick={(e) => e.stopPropagation()}>
+          <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowSettings(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="bg-card rounded-2xl shadow-warm max-w-sm w-full p-6 border border-appBorder" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-semibold text-card-foreground">Timer Settings</h3>
                     <button onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-foreground"><X size={20} /></button>

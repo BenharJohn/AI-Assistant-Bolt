@@ -156,7 +156,7 @@ const AICompanion: React.FC = () => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="max-w-3xl mx-auto mb-4 flex items-center gap-3 bg-stone-100 dark:bg-stone-800/40 border border-stone-300 dark:border-stone-600 rounded-xl px-4 py-3 text-sm text-stone-800 dark:text-stone-200"
+            className="max-w-3xl mx-auto mb-4 flex items-center gap-3 bg-muted border border-appBorder rounded-xl px-4 py-3 text-sm text-foreground"
           >
             <WifiOff size={16} className="flex-shrink-0" />
             <span className="flex-1">
@@ -165,16 +165,16 @@ const AICompanion: React.FC = () => {
             {offlineLLM.status === 'idle' && (
               <button
                 onClick={handleLoadOfflineModel}
-                className="flex items-center gap-1 bg-stone-300 dark:bg-stone-700 rounded-lg px-2 py-1 text-xs font-medium hover:bg-stone-400 dark:hover:bg-stone-600 transition-colors"
+                className="flex items-center gap-1 bg-secondary/50 rounded-lg px-2 py-1 text-xs font-medium hover:bg-secondary transition-colors"
               >
                 <Download size={12} />
                 Load model
               </button>
             )}
             {offlineLLM.status === 'loading' && (
-              <div className="w-24 h-2 bg-stone-300 dark:bg-stone-700 rounded-full overflow-hidden">
+              <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-stone-500 rounded-full transition-all duration-300"
+                  className="h-full bg-primary rounded-full transition-all duration-300"
                   style={{ width: `${offlineLLM.progress}%` }}
                 />
               </div>
@@ -184,9 +184,9 @@ const AICompanion: React.FC = () => {
       </AnimatePresence>
 
       <div className="max-w-3xl mx-auto">
-        <div className="bg-card rounded-2xl border border-appBorder overflow-hidden shadow-warm h-[70vh]">
+        <div className="bg-card rounded-2xl border border-appBorder overflow-hidden shadow-soft h-[calc(100vh-13rem)] lg:h-[70vh]">
           <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 lg:space-y-6">
               <AnimatePresence>
                 {conversation.map((entry, index) => (
                   <motion.div
@@ -239,7 +239,7 @@ const AICompanion: React.FC = () => {
                     type="button"
                     onClick={handleStop}
                     aria-label="Stop generating"
-                    className="p-3 rounded-xl transition-all duration-200 bg-red-500 hover:bg-red-600 text-white"
+                    className="p-3 rounded-xl transition-all duration-200 bg-primary hover:bg-primary-hover text-primary-foreground"
                   >
                     <Square size={20} />
                   </button>

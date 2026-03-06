@@ -158,7 +158,7 @@ const Settings: React.FC = () => {
           {/* Main Settings */}
           <div className="lg:col-span-2 space-y-6">
             {/* Appearance Section */}
-            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder">
               <h2 className="text-xl font-semibold text-card-foreground mb-6 flex items-center">
                 <Eye className="mr-3 text-primary" size={24} />
                 Appearance & Visual
@@ -192,7 +192,7 @@ const Settings: React.FC = () => {
             </motion.section>
             
             {/* Text & Reading Section */}
-            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder">
               <h2 className="text-xl font-semibold text-card-foreground mb-6 flex items-center">
                 <Type className="mr-3 text-secondary" size={24} />
                 Text & Reading
@@ -234,7 +234,7 @@ const Settings: React.FC = () => {
             </motion.section>
             
             {/* Audio & Notifications Section */}
-            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder">
               <h2 className="text-xl font-semibold text-card-foreground mb-6 flex items-center">
                 <Bell className="mr-3 text-accent" size={24} />
                 Audio & Notifications
@@ -282,7 +282,7 @@ const Settings: React.FC = () => {
           
           {/* Preview Panel */}
           <div className="space-y-6">
-            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder">
               <h2 className="text-lg font-semibold text-card-foreground mb-4">Live Preview</h2>
               <p className="text-sm text-muted-foreground mb-4">See how your text settings affect readability in real-time</p>
               
@@ -318,7 +318,7 @@ const Settings: React.FC = () => {
               </div>
             </motion.section>
             
-            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-warm p-6 border border-appBorder">
+            <motion.section variants={itemVariants} className="bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder">
               <h2 className="text-lg font-semibold text-card-foreground mb-4">About Your Settings</h2>
               
               <div className="space-y-3 text-sm">

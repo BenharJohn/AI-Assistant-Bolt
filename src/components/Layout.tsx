@@ -80,7 +80,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center space-x-3 p-3 rounded-xl transition-colors duration-200 ${
+                className={`flex items-center space-x-3 p-3 rounded-xl transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
                   location.pathname === item.path
                     ? 'bg-primary/10 text-primary border-l-4 border-primary'
                     : 'hover:bg-muted'
@@ -115,7 +115,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-3 p-3 my-1 rounded-xl transition-colors duration-200 ${
+                  className={`flex items-center space-x-3 p-3 my-1 rounded-xl transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
                     location.pathname === item.path
                       ? 'bg-primary/10 text-primary border-l-4 border-primary'
                       : 'hover:bg-muted'
@@ -146,10 +146,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center p-2 ${
+              className={`flex flex-col items-center justify-center p-2 rounded-lg transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
                 location.pathname === item.path
                   ? 'text-primary'
-                  : 'text-muted-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {item.icon}

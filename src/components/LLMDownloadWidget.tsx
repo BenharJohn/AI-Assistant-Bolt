@@ -5,18 +5,19 @@ import foxIcon from '../assets/fox.png';
 import { useOfflineLLM } from '../hooks/useOfflineLLM';
 
 const LLMDownloadWidget: React.FC = () => {
-  const { status, progress } = useOfflineLLM();
+  const { status, progress, error } = useOfflineLLM();
   const [dismissed, setDismissed] = useState(false);
 
   const isReady = status === 'ready';
 
-  // Auto-dismiss 5s after ready
+  // Auto-dismiss 5s after ready, 8s after error
   useEffect(() => {
-    if (isReady && !dismissed) {
-      const timer = setTimeout(() => setDismissed(true), 5000);
+    if ((isReady || status === 'error') && !dismissed) {
+      const delay = status === 'error' ? 8000 : 5000;
+      const timer = setTimeout(() => setDismissed(true), delay);
       return () => clearTimeout(timer);
     }
-  }, [isReady, dismissed]);
+  }, [isReady, status, dismissed]);
 
   // Don't show if idle, dismissed, or already generating
   if (status === 'idle' || status === 'generating' || dismissed) return null;
@@ -33,7 +34,7 @@ const LLMDownloadWidget: React.FC = () => {
         >
           <div className="relative flex items-center gap-3 bg-card border border-appBorder rounded-2xl shadow-lg px-4 py-3 min-w-[200px]">
             {/* Close button */}
-            {isReady && (
+            {(isReady || status === 'error') && (
               <button
                 onClick={() => setDismissed(true)}
                 className="absolute -top-2 -right-2 bg-muted rounded-full p-0.5 text-muted-foreground hover:text-foreground transition-colors"
@@ -123,15 +124,15 @@ const LLMDownloadWidget: React.FC = () => {
               )}
               {isReady && (
                 <div className="flex items-center gap-1.5">
-                  <Brain size={12} className="text-green-500" />
-                  <p className="text-xs font-medium text-green-600 dark:text-green-400">
+                  <Brain size={12} className="text-primary" />
+                  <p className="text-xs font-medium text-primary">
                     Offline AI ready!
                   </p>
                 </div>
               )}
               {status === 'error' && (
-                <p className="text-xs font-medium text-red-500">
-                  Download failed
+                <p className="text-xs font-medium text-primary">
+                  {error || 'Download failed'}
                 </p>
               )}
             </div>

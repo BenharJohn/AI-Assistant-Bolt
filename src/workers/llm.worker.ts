@@ -1,7 +1,7 @@
 import { pipeline, TextStreamer } from '@huggingface/transformers';
 
 type WorkerMessage =
-  | { type: 'load' }
+  | { type: 'load'; skipWarmup?: boolean }
   | { type: 'generate'; payload: { messages: { role: string; content: string }[]; id: string } }
   | { type: 'stop' };
 
@@ -11,7 +11,7 @@ let shouldStop = false;
 
 const MODEL_ID = 'onnx-community/Llama-3.2-1B-Instruct';
 
-async function loadModel() {
+async function loadModel(skipWarmup = false) {
   self.postMessage({ type: 'loading', progress: 0 });
 
   try {
@@ -53,13 +53,24 @@ async function loadModel() {
     });
 
     // Warm-up inference: triggers WASM JIT / WebGPU shader compilation
-    // so the user's first real query skips this cold-start penalty
-    await generator([{ role: 'user', content: 'hi' }], { max_new_tokens: 1 });
+    // Skip on mobile to save memory
+    if (!skipWarmup) {
+      await generator([{ role: 'user', content: 'hi' }], { max_new_tokens: 1 });
+    }
 
     self.postMessage({ type: 'ready' });
   } catch (err: any) {
     console.error('Model loading failed:', err);
-    self.postMessage({ type: 'error', id: null, error: err?.message ?? 'Failed to load model' });
+    const message = err?.message ?? 'Failed to load model';
+    // Detect out-of-memory errors
+    const isOOM = message.toLowerCase().includes('memory') ||
+                  message.toLowerCase().includes('oom') ||
+                  message.toLowerCase().includes('allocation') ||
+                  err?.name === 'RangeError';
+    const errorMsg = isOOM
+      ? 'Not enough memory to load the AI model. Try closing other tabs or using a desktop browser.'
+      : message;
+    self.postMessage({ type: 'error', id: null, error: errorMsg });
   }
 }
 
@@ -104,7 +115,7 @@ async function generate(messages: { role: string; content: string }[], id: strin
 self.addEventListener('message', async (event: MessageEvent<WorkerMessage>) => {
   const msg = event.data;
   if (msg.type === 'load') {
-    await loadModel();
+    await loadModel(msg.skipWarmup);
   } else if (msg.type === 'generate') {
     await generate(msg.payload.messages, msg.payload.id);
   } else if (msg.type === 'stop') {
