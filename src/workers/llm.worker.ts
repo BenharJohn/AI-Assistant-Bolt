@@ -1,17 +1,17 @@
 type WorkerMessage =
-  | { type: 'load'; skipWarmup?: boolean }
+  | { type: 'load'; skipWarmup?: boolean; preferLargeModel?: boolean }
   | { type: 'generate'; payload: { messages: { role: string; content: string }[]; id: string } }
   | { type: 'stop' };
 
 // Engine state
-let webllmEngine: any = null;
-let transformersGenerator: any = null;
-let useWebLLM = false;
+let engine: any = null;
 let currentId: string | null = null;
 let shouldStop = false;
+let activeModel = '';
 
-const WEBLLM_MODEL = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
-const TRANSFORMERS_MODEL = 'onnx-community/Llama-3.2-1B-Instruct';
+// Models — 1B for normal devices, 3B for powerful ones
+const MODEL_1B = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+const MODEL_3B = 'Llama-3.2-3B-Instruct-q4f16_1-MLC';
 
 async function hasWebGPU(): Promise<boolean> {
   try {
@@ -26,54 +26,69 @@ async function hasWebGPU(): Promise<boolean> {
   return false;
 }
 
-async function loadModel(skipWarmup = false) {
+async function detectBestModel(): Promise<string> {
+  try {
+    const gpu = (navigator as any).gpu;
+    if (!gpu) return MODEL_1B;
+
+    const adapter = await gpu.requestAdapter();
+    if (!adapter) return MODEL_1B;
+
+    // Check available VRAM via adapter limits
+    const maxBufferSize = (adapter as any).limits?.maxBufferSize ?? 0;
+    const maxStorageBufferSize = (adapter as any).limits?.maxStorageBufferBindingSize ?? 0;
+
+    // 3B model needs ~1.5GB VRAM — use it if device reports enough capacity
+    // maxBufferSize > 1GB is a reasonable heuristic for capable GPUs
+    const hasEnoughVRAM = maxBufferSize > 1_000_000_000 || maxStorageBufferSize > 500_000_000;
+
+    // Also check device memory (RAM) if available
+    const deviceMemory = (navigator as any).deviceMemory ?? 4; // defaults to 4GB if unknown
+
+    if (hasEnoughVRAM && deviceMemory >= 6) {
+      return MODEL_3B;
+    }
+
+    return MODEL_1B;
+  } catch {
+    return MODEL_1B;
+  }
+}
+
+async function loadModel(preferLargeModel = false) {
   self.postMessage({ type: 'loading', progress: 0 });
 
   try {
     const webgpuAvailable = await hasWebGPU();
 
-    if (webgpuAvailable) {
-      // ── WebLLM (WebGPU) — fast, GPU-accelerated ──
-      useWebLLM = true;
-      self.postMessage({ type: 'device', device: 'webgpu' });
-
-      const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
-
-      webllmEngine = await CreateMLCEngine(WEBLLM_MODEL, {
-        initProgressCallback: (progress: any) => {
-          const pct = Math.round((progress.progress ?? 0) * 100);
-          self.postMessage({ type: 'progress', value: pct, file: progress.text ?? '' });
-        },
+    if (!webgpuAvailable) {
+      self.postMessage({
+        type: 'error',
+        id: null,
+        error: 'WebGPU is not available in this browser. Please use Chrome 113+ or Edge 113+ for offline AI.',
       });
-
-      self.postMessage({ type: 'ready' });
-    } else {
-      // ── Transformers.js (WASM) — fallback for no WebGPU ──
-      useWebLLM = false;
-      self.postMessage({ type: 'device', device: 'wasm' });
-
-      const { pipeline, TextStreamer } = await import('@huggingface/transformers');
-
-      transformersGenerator = await pipeline('text-generation', TRANSFORMERS_MODEL, {
-        dtype: 'q4f16',
-        device: 'wasm',
-        session_options: { graphOptimizationLevel: 'all' },
-        progress_callback: (info: any) => {
-          if (info.status === 'progress') {
-            self.postMessage({ type: 'progress', value: Math.round(info.progress ?? 0), file: info.file });
-          } else if (info.status === 'done') {
-            self.postMessage({ type: 'progress', value: 100, file: info.file });
-          }
-        },
-      });
-
-      // Warm-up inference (skip on mobile to save memory)
-      if (!skipWarmup) {
-        await transformersGenerator([{ role: 'user', content: 'hi' }], { max_new_tokens: 1 });
-      }
-
-      self.postMessage({ type: 'ready' });
+      return;
     }
+
+    self.postMessage({ type: 'device', device: 'webgpu' });
+
+    // Pick model based on device capability
+    const selectedModel = preferLargeModel ? MODEL_3B : await detectBestModel();
+    activeModel = selectedModel;
+    const modelLabel = selectedModel === MODEL_3B ? '3B' : '1B';
+
+    self.postMessage({ type: 'model', model: modelLabel });
+
+    const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
+
+    engine = await CreateMLCEngine(selectedModel, {
+      initProgressCallback: (progress: any) => {
+        const pct = Math.round((progress.progress ?? 0) * 100);
+        self.postMessage({ type: 'progress', value: pct, file: progress.text ?? '' });
+      },
+    });
+
+    self.postMessage({ type: 'ready' });
   } catch (err: any) {
     console.error('Model loading failed:', err);
     const message = err?.message ?? 'Failed to load model';
@@ -82,24 +97,34 @@ async function loadModel(skipWarmup = false) {
                   message.toLowerCase().includes('allocation') ||
                   err?.name === 'RangeError';
     const errorMsg = isOOM
-      ? 'Not enough memory to load the AI model. Try closing other tabs or using a desktop browser.'
+      ? 'Not enough memory for this model. Try closing other tabs or using a device with more RAM.'
       : message;
     self.postMessage({ type: 'error', id: null, error: errorMsg });
   }
 }
 
-async function generateWebLLM(messages: { role: string; content: string }[], id: string) {
+async function generateResponse(messages: { role: string; content: string }[], id: string) {
+  if (!engine) {
+    self.postMessage({ type: 'error', id, error: 'Model not loaded' });
+    return;
+  }
+
+  currentId = id;
+  shouldStop = false;
+
   try {
-    const chunks = await webllmEngine.chat.completions.create({
+    const maxTokens = activeModel === MODEL_3B ? 300 : 200;
+
+    const chunks = await engine.chat.completions.create({
       messages,
-      max_tokens: 200,
+      max_tokens: maxTokens,
       temperature: 0.7,
       stream: true,
     });
 
     for await (const chunk of chunks) {
       if (shouldStop) {
-        webllmEngine.interruptGenerate();
+        engine.interruptGenerate();
         break;
       }
       const token = chunk.choices[0]?.delta?.content ?? '';
@@ -114,55 +139,6 @@ async function generateWebLLM(messages: { role: string; content: string }[], id:
       self.postMessage({ type: 'error', id, error: err?.message ?? 'Generation failed' });
     }
   }
-}
-
-async function generateTransformers(messages: { role: string; content: string }[], id: string) {
-  try {
-    const { TextStreamer } = await import('@huggingface/transformers');
-
-    const streamer = new TextStreamer(transformersGenerator.tokenizer, {
-      skip_prompt: true,
-      skip_special_tokens: true,
-      callback_function: (token: string) => {
-        if (shouldStop) return false;
-        self.postMessage({ type: 'token', id, token });
-      },
-    });
-
-    await transformersGenerator(messages, {
-      max_new_tokens: 150,
-      temperature: 0.7,
-      do_sample: true,
-      repetition_penalty: 1.1,
-      streamer,
-    });
-
-    self.postMessage({ type: 'result', id });
-  } catch (err: any) {
-    if (!shouldStop) {
-      self.postMessage({ type: 'error', id, error: err?.message ?? 'Generation failed' });
-    }
-  }
-}
-
-async function generate(messages: { role: string; content: string }[], id: string) {
-  if (useWebLLM && !webllmEngine) {
-    self.postMessage({ type: 'error', id, error: 'Model not loaded' });
-    return;
-  }
-  if (!useWebLLM && !transformersGenerator) {
-    self.postMessage({ type: 'error', id, error: 'Model not loaded' });
-    return;
-  }
-
-  currentId = id;
-  shouldStop = false;
-
-  if (useWebLLM) {
-    await generateWebLLM(messages, id);
-  } else {
-    await generateTransformers(messages, id);
-  }
 
   currentId = null;
   shouldStop = false;
@@ -171,13 +147,13 @@ async function generate(messages: { role: string; content: string }[], id: strin
 self.addEventListener('message', async (event: MessageEvent<WorkerMessage>) => {
   const msg = event.data;
   if (msg.type === 'load') {
-    await loadModel(msg.skipWarmup);
+    await loadModel(msg.preferLargeModel);
   } else if (msg.type === 'generate') {
-    await generate(msg.payload.messages, msg.payload.id);
+    await generateResponse(msg.payload.messages, msg.payload.id);
   } else if (msg.type === 'stop') {
     shouldStop = true;
-    if (useWebLLM && webllmEngine) {
-      try { webllmEngine.interruptGenerate(); } catch {}
+    if (engine) {
+      try { engine.interruptGenerate(); } catch {}
     }
     if (currentId) {
       self.postMessage({ type: 'result', id: currentId });

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Brain, X, Download, Cpu, Zap } from 'lucide-react';
+import { Check, Brain, X, Download, Zap } from 'lucide-react';
 import foxIcon from '../assets/fox.png';
 import { useOfflineLLM } from '../hooks/useOfflineLLM';
 
 const CONSENT_KEY = 'aeva_llm_consent';
 
 const LLMDownloadWidget: React.FC = () => {
-  const { status, progress, error, device, load } = useOfflineLLM();
+  const { status, progress, error, modelSize, load } = useOfflineLLM();
   const [dismissed, setDismissed] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
 
@@ -19,7 +19,6 @@ const LLMDownloadWidget: React.FC = () => {
     if (consented === 'true' && status === 'idle') {
       load();
     } else if (!consented && status === 'idle') {
-      // Show consent prompt after 2s
       const timer = setTimeout(() => setShowConsent(true), 2000);
       return () => clearTimeout(timer);
     }
@@ -69,15 +68,15 @@ const LLMDownloadWidget: React.FC = () => {
               <div>
                 <p className="text-sm font-medium text-foreground">Enable Offline AI?</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  I can download a small AI model (~500MB) so I work even without internet. Uses WebGPU for fast, private, on-device inference.
+                  I'll download a Llama 3.2 model so I work even without internet. Uses WebGPU for fast, private, on-device inference. The best model for your device will be selected automatically.
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 mt-3 text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1"><Cpu size={10} /> On-device</span>
+              <span className="flex items-center gap-1"><Zap size={10} /> WebGPU powered</span>
               <span>·</span>
-              <span className="flex items-center gap-1"><Zap size={10} /> WebGPU accelerated</span>
+              <span>Llama 3.2 (1B/3B)</span>
               <span>·</span>
               <span>One-time download</span>
             </div>
@@ -192,7 +191,7 @@ const LLMDownloadWidget: React.FC = () => {
               {status === 'loading' && (
                 <>
                   <p className="text-xs font-medium text-foreground truncate">
-                    Downloading AI model
+                    Downloading Llama 3.2{modelSize ? ` ${modelSize}` : ''}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -211,7 +210,7 @@ const LLMDownloadWidget: React.FC = () => {
                 <div className="flex items-center gap-1.5">
                   <Brain size={12} className="text-primary" />
                   <p className="text-xs font-medium text-primary">
-                    Offline AI ready {device === 'webgpu' ? '(GPU)' : '(CPU)'}
+                    Llama 3.2 {modelSize} ready (WebGPU)
                   </p>
                 </div>
               )}

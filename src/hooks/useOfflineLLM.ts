@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 
 export type OfflineLLMStatus = 'idle' | 'loading' | 'ready' | 'generating' | 'error';
 
@@ -8,6 +8,7 @@ export interface OfflineLLMState {
   progressFile: string;
   error: string | null;
   device: string;
+  modelSize: string; // '1B' | '3B' | ''
 }
 
 const AEVA_SYSTEM_PROMPT = `You are Aeva, a helpful AI companion. Be concise, encouraging, and practical.`;
@@ -21,7 +22,8 @@ let sharedState: OfflineLLMState = {
   progress: 0,
   progressFile: '',
   error: null,
-  device: 'wasm',
+  device: 'webgpu',
+  modelSize: '',
 };
 let listeners: Set<() => void> = new Set();
 
@@ -39,14 +41,6 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-// Detect mobile: small screen or touch-only device
-const isMobileDevice = () => {
-  if (typeof window === 'undefined') return false;
-  const isSmallScreen = window.innerWidth < 768;
-  const isTouchOnly = 'ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches;
-  return isSmallScreen || isTouchOnly;
-};
-
 function getWorker(): Worker {
   if (!workerSingleton) {
     workerSingleton = new Worker(new URL('../workers/llm.worker.ts', import.meta.url), { type: 'module' });
@@ -58,12 +52,13 @@ function getWorker(): Worker {
         setSharedState(s => ({ ...s, status: 'loading', progress: 0 }));
       } else if (msg.type === 'device') {
         setSharedState(s => ({ ...s, device: msg.device }));
+      } else if (msg.type === 'model') {
+        setSharedState(s => ({ ...s, modelSize: msg.model }));
       } else if (msg.type === 'progress') {
         setSharedState(s => ({ ...s, status: 'loading', progress: msg.value, progressFile: msg.file ?? '' }));
       } else if (msg.type === 'ready') {
         setSharedState(s => ({ ...s, status: 'ready', progress: 100, error: null }));
       } else if (msg.type === 'token') {
-        // Token handling is per-instance, dispatched via pendingCallbacks
         pendingCallbacks.get(msg.id)?.onToken(msg.token);
       } else if (msg.type === 'result') {
         pendingCallbacks.get(msg.id)?.resolve();
@@ -90,7 +85,6 @@ const pendingCallbacks = new Map<string, {
 }>();
 
 export const useOfflineLLM = () => {
-  // useSyncExternalStore ensures all hook instances share the same state
   const state = useSyncExternalStore(subscribe, getSnapshot);
   const workerRef = useRef<Worker | null>(null);
 
@@ -102,7 +96,7 @@ export const useOfflineLLM = () => {
     const s = getSnapshot();
     if (s.status === 'idle' || s.status === 'error') {
       setSharedState(prev => ({ ...prev, status: 'loading', progress: 0, error: null }));
-      getWorker().postMessage({ type: 'load', skipWarmup: isMobileDevice() });
+      getWorker().postMessage({ type: 'load' });
     }
   }, []);
 

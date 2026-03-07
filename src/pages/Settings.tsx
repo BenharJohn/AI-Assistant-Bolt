@@ -362,7 +362,7 @@ const Settings: React.FC = () => {
                 <h3 className="text-sm font-semibold text-foreground">On-Device LLM</h3>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Llama 3.2 1B running entirely in your browser via {offlineLLM.device === 'webgpu' ? 'WebLLM (WebGPU)' : 'Transformers.js (WASM)'}
+                Llama 3.2 {offlineLLM.modelSize || '1B/3B'} running entirely in your browser via WebLLM (WebGPU). Auto-selects 3B on powerful devices
               </p>
               <div className="mt-2 flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${offlineLLM.status === 'ready' ? 'bg-green-400' : offlineLLM.status === 'loading' ? 'bg-yellow-400 animate-pulse' : 'bg-muted-foreground'}`} />
@@ -382,7 +382,7 @@ const Settings: React.FC = () => {
               </p>
               <div className="mt-2">
                 <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full font-medium">
-                  {offlineLLM.device === 'webgpu' ? 'WebGPU Active' : 'WASM Fallback'}
+                  WebGPU Accelerated
                 </span>
               </div>
             </div>
@@ -415,7 +415,7 @@ const Settings: React.FC = () => {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {['React', 'TypeScript', 'Vite', 'Tailwind CSS', 'Framer Motion', 'Web Workers', 'WebGPU', 'WebLLM', 'Transformers.js', 'Gemini API'].map(tech => (
+            {['React', 'TypeScript', 'Vite', 'Tailwind CSS', 'Framer Motion', 'Web Workers', 'WebGPU', 'WebLLM', 'Llama 3.2', 'Gemini API'].map(tech => (
               <span key={tech} className="text-[10px] bg-muted text-muted-foreground px-2.5 py-1 rounded-full font-medium">
                 {tech}
               </span>
