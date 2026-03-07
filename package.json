@@ -12,6 +12,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@huggingface/transformers": "^3.8.1",
+    "@mlc-ai/web-llm": "^0.2.81",
     "@supabase/supabase-js": "^2.44.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
