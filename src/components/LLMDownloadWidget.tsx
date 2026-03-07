@@ -1,14 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Brain, X } from 'lucide-react';
+import { Check, Brain, X, Download, Cpu, Zap } from 'lucide-react';
 import foxIcon from '../assets/fox.png';
 import { useOfflineLLM } from '../hooks/useOfflineLLM';
 
+const CONSENT_KEY = 'aeva_llm_consent';
+
 const LLMDownloadWidget: React.FC = () => {
-  const { status, progress, error } = useOfflineLLM();
+  const { status, progress, error, device, load } = useOfflineLLM();
   const [dismissed, setDismissed] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
 
   const isReady = status === 'ready';
+
+  // On mount, check if user already consented — if so, auto-load
+  useEffect(() => {
+    const consented = localStorage.getItem(CONSENT_KEY);
+    if (consented === 'true' && status === 'idle') {
+      load();
+    } else if (!consented && status === 'idle') {
+      // Show consent prompt after 2s
+      const timer = setTimeout(() => setShowConsent(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-dismiss 5s after ready, 8s after error
   useEffect(() => {
@@ -19,9 +34,79 @@ const LLMDownloadWidget: React.FC = () => {
     }
   }, [isReady, status, dismissed]);
 
-  // Don't show if idle, dismissed, or already generating
+  const handleConsent = () => {
+    localStorage.setItem(CONSENT_KEY, 'true');
+    setShowConsent(false);
+    load();
+  };
+
+  const handleDecline = () => {
+    setShowConsent(false);
+    setDismissed(true);
+  };
+
+  // ── Consent prompt ──
+  if (showConsent && status === 'idle') {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-40 max-w-[320px]"
+        >
+          <div className="bg-card border border-appBorder rounded-2xl shadow-warm p-4">
+            <button
+              onClick={handleDecline}
+              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground p-1"
+            >
+              <X size={14} />
+            </button>
+
+            <div className="flex items-start gap-3">
+              <img src={foxIcon} alt="Aeva" className="w-10 h-10 object-contain flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Enable Offline AI?</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  I can download a small AI model (~500MB) so I work even without internet. Uses WebGPU for fast, private, on-device inference.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 mt-3 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><Cpu size={10} /> On-device</span>
+              <span>·</span>
+              <span className="flex items-center gap-1"><Zap size={10} /> WebGPU accelerated</span>
+              <span>·</span>
+              <span>One-time download</span>
+            </div>
+
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={handleDecline}
+                className="flex-1 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground rounded-xl border border-appBorder hover:bg-muted transition-colors"
+              >
+                Not now
+              </button>
+              <button
+                onClick={handleConsent}
+                className="flex-1 px-3 py-1.5 text-xs font-medium btn-primary flex items-center justify-center gap-1.5"
+              >
+                <Download size={12} />
+                Download
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  // Don't show if idle, dismissed, or generating
   if (status === 'idle' || status === 'generating' || dismissed) return null;
 
+  // ── Loading / Ready / Error states ──
   return (
     <AnimatePresence>
       {!dismissed && (
@@ -88,16 +173,16 @@ const LLMDownloadWidget: React.FC = () => {
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5"
+                  className="absolute -bottom-1 -right-1 bg-primary rounded-full p-0.5"
                 >
-                  <Check size={10} className="text-white" />
+                  <Check size={10} className="text-primary-foreground" />
                 </motion.div>
               )}
 
               {/* Error indicator */}
               {status === 'error' && (
-                <div className="absolute -bottom-1 -right-1 bg-red-500 rounded-full p-0.5">
-                  <X size={10} className="text-white" />
+                <div className="absolute -bottom-1 -right-1 bg-primary rounded-full p-0.5">
+                  <X size={10} className="text-primary-foreground" />
                 </div>
               )}
             </div>
@@ -107,7 +192,7 @@ const LLMDownloadWidget: React.FC = () => {
               {status === 'loading' && (
                 <>
                   <p className="text-xs font-medium text-foreground truncate">
-                    Preparing offline AI
+                    Downloading AI model
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -126,7 +211,7 @@ const LLMDownloadWidget: React.FC = () => {
                 <div className="flex items-center gap-1.5">
                   <Brain size={12} className="text-primary" />
                   <p className="text-xs font-medium text-primary">
-                    Offline AI ready!
+                    Offline AI ready {device === 'webgpu' ? '(GPU)' : '(CPU)'}
                   </p>
                 </div>
               )}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react';
 
 export type OfflineLLMStatus = 'idle' | 'loading' | 'ready' | 'generating' | 'error';
 
@@ -14,9 +14,30 @@ const AEVA_SYSTEM_PROMPT = `You are Aeva, a helpful AI companion. Be concise, en
 
 const AEVA_JOURNAL_PROMPT = `You are Aeva, a compassionate journal companion. Start responses with ⟡. Be warm, ask open-ended questions.`;
 
+// ── Shared singleton state (survives tab switches) ──
 let workerSingleton: Worker | null = null;
-let workerRefCount = 0;
-let autoLoadTriggered = false;
+let sharedState: OfflineLLMState = {
+  status: 'idle',
+  progress: 0,
+  progressFile: '',
+  error: null,
+  device: 'wasm',
+};
+let listeners: Set<() => void> = new Set();
+
+function setSharedState(updater: (s: OfflineLLMState) => OfflineLLMState) {
+  sharedState = updater(sharedState);
+  listeners.forEach(l => l());
+}
+
+function getSnapshot() {
+  return sharedState;
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
 
 // Detect mobile: small screen or touch-only device
 const isMobileDevice = () => {
@@ -26,98 +47,64 @@ const isMobileDevice = () => {
   return isSmallScreen || isTouchOnly;
 };
 
-export const useOfflineLLM = () => {
-  const [state, setState] = useState<OfflineLLMState>({
-    status: 'idle',
-    progress: 0,
-    progressFile: '',
-    error: null,
-    device: 'wasm',
-  });
+function getWorker(): Worker {
+  if (!workerSingleton) {
+    workerSingleton = new Worker(new URL('../workers/llm.worker.ts', import.meta.url), { type: 'module' });
 
-  const workerRef = useRef<Worker | null>(null);
-  const pendingRef = useRef<Map<string, {
-    resolve: () => void;
-    reject: (e: Error) => void;
-    onToken: (token: string) => void;
-  }>>(new Map());
-
-  useEffect(() => {
-    if (!workerSingleton) {
-      workerSingleton = new Worker(new URL('../workers/llm.worker.ts', import.meta.url), { type: 'module' });
-    }
-    workerRef.current = workerSingleton;
-    workerRefCount++;
-
-    const handleMessage = (event: MessageEvent) => {
+    workerSingleton.addEventListener('message', (event: MessageEvent) => {
       const msg = event.data;
 
       if (msg.type === 'loading') {
-        setState(s => ({ ...s, status: 'loading', progress: 0 }));
+        setSharedState(s => ({ ...s, status: 'loading', progress: 0 }));
       } else if (msg.type === 'device') {
-        setState(s => ({ ...s, device: msg.device }));
+        setSharedState(s => ({ ...s, device: msg.device }));
       } else if (msg.type === 'progress') {
-        setState(s => ({ ...s, status: 'loading', progress: msg.value, progressFile: msg.file ?? '' }));
+        setSharedState(s => ({ ...s, status: 'loading', progress: msg.value, progressFile: msg.file ?? '' }));
       } else if (msg.type === 'ready') {
-        setState(s => ({ ...s, status: 'ready', progress: 100, error: null }));
+        setSharedState(s => ({ ...s, status: 'ready', progress: 100, error: null }));
       } else if (msg.type === 'token') {
-        const pending = pendingRef.current.get(msg.id);
-        if (pending) {
-          pending.onToken(msg.token);
-        }
+        // Token handling is per-instance, dispatched via pendingCallbacks
+        pendingCallbacks.get(msg.id)?.onToken(msg.token);
       } else if (msg.type === 'result') {
-        const pending = pendingRef.current.get(msg.id);
-        if (pending) {
-          pending.resolve();
-          pendingRef.current.delete(msg.id);
-        }
-        setState(s => ({ ...s, status: 'ready' }));
+        pendingCallbacks.get(msg.id)?.resolve();
+        pendingCallbacks.delete(msg.id);
+        setSharedState(s => ({ ...s, status: 'ready' }));
       } else if (msg.type === 'error') {
-        const pending = pendingRef.current.get(msg.id);
-        if (pending) {
-          pending.reject(new Error(msg.error));
-          pendingRef.current.delete(msg.id);
+        const cb = pendingCallbacks.get(msg.id);
+        if (cb) {
+          cb.reject(new Error(msg.error));
+          pendingCallbacks.delete(msg.id);
         }
-        setState(s => ({ ...s, status: msg.id ? 'ready' : 'error', error: msg.error }));
+        setSharedState(s => ({ ...s, status: msg.id ? 'ready' : 'error', error: msg.error }));
       }
-    };
+    });
+  }
+  return workerSingleton;
+}
 
-    workerRef.current.addEventListener('message', handleMessage);
+// Shared pending callbacks (generation promises)
+const pendingCallbacks = new Map<string, {
+  resolve: () => void;
+  reject: (e: Error) => void;
+  onToken: (token: string) => void;
+}>();
 
-    // Auto-load model on first mount (3s delay so UI renders first)
-    // Skip auto-load on mobile — model is too large and can crash the browser
-    if (!autoLoadTriggered && !isMobileDevice()) {
-      autoLoadTriggered = true;
-      const timer = setTimeout(() => {
-        if (workerRef.current) {
-          setState(s => {
-            if (s.status === 'idle') {
-              workerRef.current?.postMessage({ type: 'load' });
-              return { ...s, status: 'loading', progress: 0, error: null };
-            }
-            return s;
-          });
-        }
-      }, 3000);
-      return () => {
-        clearTimeout(timer);
-        workerRef.current?.removeEventListener('message', handleMessage);
-        workerRefCount--;
-      };
-    }
+export const useOfflineLLM = () => {
+  // useSyncExternalStore ensures all hook instances share the same state
+  const state = useSyncExternalStore(subscribe, getSnapshot);
+  const workerRef = useRef<Worker | null>(null);
 
-    return () => {
-      workerRef.current?.removeEventListener('message', handleMessage);
-      workerRefCount--;
-    };
+  useEffect(() => {
+    workerRef.current = getWorker();
   }, []);
 
   const load = useCallback(() => {
-    if (state.status === 'idle' || state.status === 'error') {
-      setState(s => ({ ...s, status: 'loading', progress: 0, error: null }));
-      workerRef.current?.postMessage({ type: 'load', skipWarmup: isMobileDevice() });
+    const s = getSnapshot();
+    if (s.status === 'idle' || s.status === 'error') {
+      setSharedState(prev => ({ ...prev, status: 'loading', progress: 0, error: null }));
+      getWorker().postMessage({ type: 'load', skipWarmup: isMobileDevice() });
     }
-  }, [state.status]);
+  }, []);
 
   const generate = useCallback(async (
     userMessage: string,
@@ -125,11 +112,12 @@ export const useOfflineLLM = () => {
     mode: 'assistant' | 'journal' = 'assistant',
     onToken?: (token: string) => void,
   ): Promise<void> => {
-    if (!workerRef.current || state.status !== 'ready') {
+    const s = getSnapshot();
+    if (s.status !== 'ready') {
       throw new Error('Model not ready');
     }
 
-    setState(s => ({ ...s, status: 'generating' }));
+    setSharedState(prev => ({ ...prev, status: 'generating' }));
 
     const systemPrompt = mode === 'journal' ? AEVA_JOURNAL_PROMPT : AEVA_SYSTEM_PROMPT;
 
@@ -145,17 +133,17 @@ export const useOfflineLLM = () => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     return new Promise<void>((resolve, reject) => {
-      pendingRef.current.set(id, {
+      pendingCallbacks.set(id, {
         resolve,
         reject,
         onToken: onToken ?? (() => {}),
       });
-      workerRef.current!.postMessage({ type: 'generate', payload: { messages, id } });
+      getWorker().postMessage({ type: 'generate', payload: { messages, id } });
     });
-  }, [state.status]);
+  }, []);
 
   const stop = useCallback(() => {
-    workerRef.current?.postMessage({ type: 'stop' });
+    getWorker().postMessage({ type: 'stop' });
   }, []);
 
   return { ...state, load, generate, stop };

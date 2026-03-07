@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Eye, Type, Bell, Volume2, Check } from 'lucide-react';
+import { Eye, Type, Bell, Volume2, Check, Cpu, Zap, Globe, Shield, Brain } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSettings } from '../context/SettingsContext';
+import { useOfflineLLM } from '../hooks/useOfflineLLM';
 
 const Settings: React.FC = () => {
   const { 
@@ -22,6 +23,8 @@ const Settings: React.FC = () => {
     focusSounds,
     toggleFocusSounds
   } = useSettings();
+
+  const offlineLLM = useOfflineLLM();
 
   // Sample text for preview
   const [previewText, setPreviewText] = useState(
@@ -343,6 +346,82 @@ const Settings: React.FC = () => {
             </motion.section>
           </div>
         </div>
+
+        {/* Tech Stack Showcase */}
+        <motion.section variants={itemVariants} className="mt-8 bg-card rounded-2xl shadow-soft hover:shadow-warm transition-shadow duration-300 p-6 border border-appBorder">
+          <h2 className="text-xl font-semibold text-card-foreground mb-2 flex items-center">
+            <Zap className="mr-3 text-primary" size={24} />
+            Powered By
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">The technology behind Aeva's intelligent features</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 bg-background rounded-xl border border-appBorder">
+              <div className="flex items-center gap-2 mb-2">
+                <Brain size={18} className="text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">On-Device LLM</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Llama 3.2 1B running entirely in your browser via {offlineLLM.device === 'webgpu' ? 'WebLLM (WebGPU)' : 'Transformers.js (WASM)'}
+              </p>
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${offlineLLM.status === 'ready' ? 'bg-green-400' : offlineLLM.status === 'loading' ? 'bg-yellow-400 animate-pulse' : 'bg-muted-foreground'}`} />
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                  {offlineLLM.status === 'ready' ? 'Active' : offlineLLM.status === 'loading' ? 'Loading' : 'Standby'}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-background rounded-xl border border-appBorder">
+              <div className="flex items-center gap-2 mb-2">
+                <Cpu size={18} className="text-secondary" />
+                <h3 className="text-sm font-semibold text-foreground">WebGPU Inference</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                GPU-accelerated neural network inference using WebGPU with TVM compiler optimization
+              </p>
+              <div className="mt-2">
+                <span className="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded-full font-medium">
+                  {offlineLLM.device === 'webgpu' ? 'WebGPU Active' : 'WASM Fallback'}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-background rounded-xl border border-appBorder">
+              <div className="flex items-center gap-2 mb-2">
+                <Globe size={18} className="text-accent" />
+                <h3 className="text-sm font-semibold text-foreground">Gemini API</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Cloud AI via Google Gemini 1.5 Flash for learning tools, flashcards, and rich explanations
+              </p>
+              <div className="mt-2">
+                <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded-full font-medium">Online Primary</span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-background rounded-xl border border-appBorder">
+              <div className="flex items-center gap-2 mb-2">
+                <Shield size={18} className="text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Privacy First</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                All data stored locally in localStorage. Offline AI runs on-device — your conversations never leave your browser
+              </p>
+              <div className="mt-2">
+                <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">100% Client-Side</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {['React', 'TypeScript', 'Vite', 'Tailwind CSS', 'Framer Motion', 'Web Workers', 'WebGPU', 'WebLLM', 'Transformers.js', 'Gemini API'].map(tech => (
+              <span key={tech} className="text-[10px] bg-muted text-muted-foreground px-2.5 py-1 rounded-full font-medium">
+                {tech}
+              </span>
+            ))}
+          </div>
+        </motion.section>
       </motion.div>
     </div>
   );
